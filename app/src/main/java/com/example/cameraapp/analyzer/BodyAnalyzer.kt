@@ -33,9 +33,9 @@ class BodyAnalyzer(
             .setBaseOptions(baseOptions)
             .setRunningMode(RunningMode.LIVE_STREAM)
             .setNumPoses(1)
-            .setMinPoseDetectionConfidence(0.5f)
-            .setMinPosePresenceConfidence(0.5f)
-            .setMinTrackingConfidence(0.5f)
+            .setMinPoseDetectionConfidence(0.7f)
+            .setMinPosePresenceConfidence(0.7f)
+            .setMinTrackingConfidence(0.7f)
             .setResultListener { result: PoseLandmarkerResult, mpImage: MPImage ->
                 lastResult = result
                 onPoseDetected(result, mpImage)
@@ -58,8 +58,8 @@ class BodyAnalyzer(
         // 랜드마크 점 그리기
         for (landmark in landmarks) {
             canvas.drawCircle(
-                landmark.x() * canvas.width,
-                landmark.y() * canvas.height,
+                (1 - landmark.y()) * canvas.width,  // y 좌표를 x로 변환
+                landmark.x() * canvas.height,       // x 좌표를 y로 변환
                 8f,
                 paint
             )
@@ -91,10 +91,10 @@ class BodyAnalyzer(
 
     private fun drawLine(canvas: Canvas, start: NormalizedLandmark, end: NormalizedLandmark) {
         canvas.drawLine(
-            start.x() * canvas.width,
-            start.y() * canvas.height,
-            end.x() * canvas.width,
-            end.y() * canvas.height,
+            (1 - start.y()) * canvas.width,    // start의 y 좌표를 x로 변환
+            start.x() * canvas.height,         // start의 x 좌표를 y로 변환
+            (1 - end.y()) * canvas.width,      // end의 y 좌표를 x로 변환
+            end.x() * canvas.height,           // end의 x 좌표를 y로 변환
             paint
         )
     }

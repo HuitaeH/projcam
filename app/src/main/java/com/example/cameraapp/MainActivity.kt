@@ -127,6 +127,8 @@ class MainActivity : ComponentActivity() {
                             it.setSurfaceProvider(previewView.surfaceProvider)
                         }
 
+
+
                     val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
                     val imageCaptureUseCase = ImageCapture.Builder()
