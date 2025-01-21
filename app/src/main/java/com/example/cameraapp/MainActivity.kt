@@ -1,5 +1,6 @@
 package com.example.cameraapp
 
+// Import necessary libraries for various functionalities.
 import android.Manifest
 import android.content.ContentValues
 import android.content.pm.PackageManager
@@ -45,40 +46,50 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
+// MainActivity class
 class MainActivity : ComponentActivity() {
+    // Declare imageCapture instance for capturing photos
     private var imageCapture: ImageCapture? = null
+    // Declare analyzers for body pose and face detection
     private lateinit var bodyAnalyzer: BodyAnalyzer
     private lateinit var multiFaceAnalyzer: MultiFaceAnalyzer
 
+    // Request permissions at runtime
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions.all { it.value }) {
-            // 권한이 승인됨
+            // Permission granted
         } else {
             Toast.makeText(this, "권한이 필요합니다.", Toast.LENGTH_SHORT).show()
         }
     }
 
+    // onCreate method
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Initialize analyzers for pose and face detection
         bodyAnalyzer = BodyAnalyzer(this) { result: PoseLandmarkerResult, mpImage: MPImage ->
             handlePoseResult(result, mpImage)
         }
         multiFaceAnalyzer = MultiFaceAnalyzer(this)
 
+        // Check permissions and request if not granted
         if (!allPermissionsGranted()) {
             requestPermissions()
         }
 
+        // Set up the UI
         setContent {
             CameraAppTheme {
                 Box(modifier = Modifier.fillMaxSize()) {
+                    // Display the camera preview
                     CameraPreview(
                         imageCapture = { capture -> imageCapture = capture },
                         processImage = { imageProxy -> processImage(imageProxy) }
                     )
+                    // Button for capturing a photo
                     Button(
                         onClick = { takePhoto() },
                         modifier = Modifier
@@ -92,14 +103,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Check if all necessary permissions are granted
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
     }
 
+    // Request necessary permissions
     private fun requestPermissions() {
         requestPermissionLauncher.launch(REQUIRED_PERMISSIONS)
     }
 
+    // CameraPreview composable function
     @Composable
     private fun CameraPreview(
         imageCapture: (ImageCapture) -> Unit,
@@ -108,6 +122,7 @@ class MainActivity : ComponentActivity() {
         val lifecycleOwner = LocalLifecycleOwner.current
         val context = LocalContext.current
 
+        // Camera preview setup
         Box(modifier = Modifier.fillMaxSize()) {
             val previewView = remember {
                 PreviewView(context).apply {
@@ -116,27 +131,30 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // Launch camera preview setup
             LaunchedEffect(previewView) {
                 val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
                 cameraProviderFuture.addListener({
                     val cameraProvider = cameraProviderFuture.get()
 
+                    // Setup preview and camera selector
                     val preview = Preview.Builder()
                         .build()
                         .also {
                             it.setSurfaceProvider(previewView.surfaceProvider)
                         }
 
-
-
                     val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
+                    // Setup image capture use case
                     val imageCaptureUseCase = ImageCapture.Builder()
                         .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                         .build()
 
+                    // Pass imageCapture instance to callback
                     imageCapture(imageCaptureUseCase)
 
+                    // Setup image analyzer
                     val imageAnalyzer = ImageAnalysis.Builder()
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
@@ -148,6 +166,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                     try {
+                        // Bind camera to lifecycle
                         cameraProvider.unbindAll()
                         cameraProvider.bindToLifecycle(
                             lifecycleOwner,
@@ -162,11 +181,13 @@ class MainActivity : ComponentActivity() {
                 }, ContextCompat.getMainExecutor(context))
             }
 
+            // Display the previewView
             AndroidView(
                 factory = { previewView },
                 modifier = Modifier.fillMaxSize()
             )
 
+            // Overlay for face and body pose drawing
             val overlayView = remember {
                 object : android.view.View(context) {
                     override fun onDraw(canvas: android.graphics.Canvas) {
@@ -181,36 +202,40 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // Display the overlay view
             AndroidView(
                 factory = { overlayView },
                 modifier = Modifier.fillMaxSize()
             )
 
+            // Continuously update the overlay for rendering
             LaunchedEffect(Unit) {
                 while(true) {
                     withContext(Dispatchers.Main) {
                         overlayView.invalidate()
                     }
-                    delay(16)
+                    delay(16) // approx 60 FPS
                 }
             }
         }
     }
 
+    // Process the image from the camera
     private fun processImage(imageProxy: ImageProxy) {
         val mediaImage = imageProxy.image ?: return
         try {
-            val bitmap = imageProxy.toBitmap()
-            val mpImage = BitmapImageBuilder(bitmap).build()
-            bodyAnalyzer.detectPose(mpImage)
-            multiFaceAnalyzer.detectFaces(mpImage)
+            val bitmap = imageProxy.toBitmap() // Convert to bitmap
+            val mpImage = BitmapImageBuilder(bitmap).build() // Convert bitmap to MediaPipe image
+            bodyAnalyzer.detectPose(mpImage) // Detect body pose
+            multiFaceAnalyzer.detectFaces(mpImage) // Detect faces
         } catch (e: Exception) {
             Log.e(TAG, "Image processing failed", e)
         } finally {
-            imageProxy.close()
+            imageProxy.close() // Close the image proxy after processing
         }
     }
 
+    // Extension function to convert ImageProxy to Bitmap
     private fun ImageProxy.toBitmap(): Bitmap {
         val yBuffer = planes[0].buffer
         val uBuffer = planes[1].buffer
@@ -234,12 +259,31 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handlePoseResult(result: PoseLandmarkerResult, mpImage: MPImage) {
-        Log.d(TAG, "Detected poses: ${result.landmarks()}")
+        // Log the body landmarks' coordinates for pose
+        val bodyLandmarks = result.landmarks()  // Make sure this returns the correct landmark list
+        bodyLandmarks?.forEachIndexed { index, landmark ->
+            val x = landmark.x()  // Use getX() instead of x()
+            val y = landmark.y()  // Use getY() instead of y()
+            Log.d(TAG, "Body Landmark $index: x=$x, y=$y")
+        }
+
+        // Log the face landmarks' coordinates
+        val faces = multiFaceAnalyzer.getDetectedFaces()  // Make sure this method exists and is correct
+        faces?.forEachIndexed { index, face ->
+            face?.landmarks?.forEachIndexed { landmarkIndex, landmark ->
+                val x = landmark.getX()  // Assuming you can get the face landmark coordinates this way
+                val y = landmark.getY()
+                Log.d(TAG, "Face $index Landmark $landmarkIndex: x=$x, y=$y")
+            }
+        }
     }
 
+
+    // Take a photo and save it
     private fun takePhoto() {
         val imageCapture = imageCapture ?: return
 
+        // Set the photo file name with current time
         val name = SimpleDateFormat(FILENAME_FORMAT, Locale.US)
             .format(System.currentTimeMillis())
         val contentValues = ContentValues().apply {
@@ -250,10 +294,12 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Set output options for saving the image
         val outputOptions = ImageCapture.OutputFileOptions
             .Builder(contentResolver, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
             .build()
 
+        // Capture the photo and save it
         imageCapture.takePicture(
             outputOptions,
             ContextCompat.getMainExecutor(this),
@@ -272,6 +318,7 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    // Clean up resources onDestroy
     override fun onDestroy() {
         super.onDestroy()
         bodyAnalyzer.close()
@@ -279,8 +326,8 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
-        private const val TAG = "CameraApp"
-        private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
-        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+        private const val TAG = "CameraApp" // Log tag
+        private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS" // Filename format for images
+        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA) // Permissions required for camera
     }
 }

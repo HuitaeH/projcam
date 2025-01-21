@@ -32,10 +32,10 @@ class BodyAnalyzer(
         val options = PoseLandmarker.PoseLandmarkerOptions.builder()
             .setBaseOptions(baseOptions)
             .setRunningMode(RunningMode.LIVE_STREAM)
-            .setNumPoses(1)
-            .setMinPoseDetectionConfidence(0.7f)
-            .setMinPosePresenceConfidence(0.7f)
-            .setMinTrackingConfidence(0.7f)
+            .setNumPoses(3)
+            .setMinPoseDetectionConfidence(0.3f)
+            .setMinPosePresenceConfidence(0.3f)
+            .setMinTrackingConfidence(0.3f)
             .setResultListener { result: PoseLandmarkerResult, mpImage: MPImage ->
                 lastResult = result
                 onPoseDetected(result, mpImage)
