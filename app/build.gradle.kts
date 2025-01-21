@@ -57,7 +57,11 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation("androidx.compose.runtime:runtime")
     implementation("com.google.mediapipe:tasks-vision:0.10.8")
+//    implementation(com.google.mediapipe:tasks-vision:latest_version)
+//    implementation(com.google.mediapipe:mediapipe-framework:latest_version)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

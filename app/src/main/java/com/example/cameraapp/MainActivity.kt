@@ -41,6 +41,11 @@ import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.isActive
+
 
 class MainActivity : ComponentActivity() {
     private var imageCapture: ImageCapture? = null
@@ -192,6 +197,8 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+
     private fun processImage(imageProxy: ImageProxy) {
         val mediaImage = imageProxy.image ?: return
         try {
@@ -227,6 +234,7 @@ class MainActivity : ComponentActivity() {
         val byteArray = out.toByteArray()
         return BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
     }
+
 
     private fun handlePoseResult(result: PoseLandmarkerResult, mpImage: MPImage) {
         Log.d(TAG, "Detected poses: ${result.landmarks()}")
