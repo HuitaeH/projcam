@@ -41,6 +41,9 @@ import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     private var imageCapture: ImageCapture? = null
@@ -162,36 +165,36 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier.fillMaxSize()
             )
 
-            // 분석 결과를 보여주는 오버레이 추가
+            val overlayView = remember {
+                object : android.view.View(context) {
+                    override fun onDraw(canvas: android.graphics.Canvas) {
+                        super.onDraw(canvas)
+                        multiFaceAnalyzer.drawFaces(canvas)
+                        bodyAnalyzer.lastResult?.landmarks()?.firstOrNull()?.let { landmarks ->
+                            bodyAnalyzer.drawPose(canvas, landmarks)
+                        }
+                    }
+                }.apply {
+                    setWillNotDraw(false)
+                }
+            }
+
             AndroidView(
-                factory = { context ->
-                    object : android.view.View(context) {
-                        override fun onDraw(canvas: android.graphics.Canvas) {
-                            super.onDraw(canvas)
-                            multiFaceAnalyzer.drawFaces(canvas)
-                            // bodyAnalyzer의 포즈 결과도 그리기
-                            bodyAnalyzer.lastResult?.landmarks()?.firstOrNull()?.let { landmarks ->
-                                bodyAnalyzer.drawPose(canvas, landmarks)
-                            }
-                        }
-                    }.apply {
-                        setWillNotDraw(false)
-                    }
-                },
+                factory = { overlayView },
                 modifier = Modifier.fillMaxSize()
-            ) { view ->
-                // 주기적으로 뷰 갱신
-                LaunchedEffect(view) {
-                    while(true) {
-                        withContext(Dispatchers.Main) {
-                            view.invalidate()
-                        }
-                        delay(16) // 약 60fps
+            )
+
+            LaunchedEffect(Unit) {
+                while(true) {
+                    withContext(Dispatchers.Main) {
+                        overlayView.invalidate()
                     }
+                    delay(16)
                 }
             }
         }
     }
+
     private fun processImage(imageProxy: ImageProxy) {
         val mediaImage = imageProxy.image ?: return
         try {
@@ -230,11 +233,6 @@ class MainActivity : ComponentActivity() {
 
     private fun handlePoseResult(result: PoseLandmarkerResult, mpImage: MPImage) {
         Log.d(TAG, "Detected poses: ${result.landmarks()}")
-        result.landmarks().firstOrNull()?.let { landmarks ->
-            overlayView?.let { view ->
-                view.invalidate()  // 화면 갱신 트리거
-            }
-        }
     }
 
     private fun takePhoto() {
