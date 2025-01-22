@@ -50,7 +50,7 @@ import java.util.*
 //import kotlinx.coroutines.delay
 //import kotlinx.coroutines.withContext
 import com.example.cameraapp.analyzer.PoseComparator
-import com.example.cameraapp.model.Referencepose
+import com.example.cameraapp.model.ReferencePoints
 import com.example.cameraapp.ui.theme.overlay.PoseSuggestionView
 //import androidx.compose.material3.ButtonDefaults  // 이 import 추가
 //import androidx.compose.material.icons.Icons
@@ -77,7 +77,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var bodyAnalyzer: BodyAnalyzer
     private lateinit var multiFaceAnalyzer: MultiFaceAnalyzer
     private lateinit var poseComparator: PoseComparator
-    private lateinit var referencePose: Referencepose
+    private lateinit var referenceCom: ReferencePoints
+    private lateinit var referencePose: ReferencePoints
     private lateinit var poseSuggestionView: PoseSuggestionView
     private var currentCameraSelector = CameraSelector.DEFAULT_BACK_CAMERA // 기본은 후면 카메라
 
@@ -105,10 +106,19 @@ class MainActivity : ComponentActivity() {
         switchButton.setOnClickListener { toggleCamera() }
 
         // JSON 파일 로드
-        val jsonString = assets.open("reference_pose.json").bufferedReader().use { it.readText() }
-        referencePose = Gson().fromJson(jsonString, Referencepose::class.java)
+        try {
+            val jsonCOM = assets.open("half_average_com.json").bufferedReader().use { it.readText() }
+            val jsonPose = assets.open("half_average_posture.json").bufferedReader().use { it.readText() }
+            referenceCom = Gson().fromJson(jsonCOM, ReferencePoints::class.java)
+            referencePose = Gson().fromJson(jsonPose, ReferencePoints::class.java)
+            poseComparator = PoseComparator(referencePose, referenceCom)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading JSON files", e)
+        }
 
-        poseComparator = PoseComparator()
+
+
+
         poseSuggestionView = PoseSuggestionView(this)
 
         bodyAnalyzer = BodyAnalyzer(this) { result: PoseLandmarkerResult, mpImage: MPImage ->
