@@ -155,11 +155,26 @@ class PoseComparator {
         }
     }
     private fun calculatePartScore(xScore: Float, yScore: Float): Float {
-        // Y 점수가 0이면 전체 점수도 0
-        if (yScore == 0f) return 0f
+        // 둘 다 높은 점수일 때 보너스
+        if (xScore >= 80f && yScore >= 80f) {
+            return 100f
+        }
 
-        // 그 외의 경우 X:Y = 6:4 비율로 계산
-        return (xScore * 0.6f) + (yScore * 0.4f)
+        // 둘 중 하나라도 매우 낮으면 감점
+        if (xScore <= 40f || yScore <= 40f) {
+            return (xScore + yScore) / 4  // 큰 폭의 감점
+        }
+
+        // 기본 점수 계산 (x:y = 6:4)
+        val baseScore = (xScore * 0.6f) + (yScore * 0.4f)
+
+        // 점수 구간별 보정
+        return when {
+            baseScore >= 70f -> baseScore * 1.2f  // 상위 점수 보너스
+            baseScore >= 50f -> baseScore * 1.1f  // 중상위 점수 약한 보너스
+            baseScore >= 30f -> baseScore * 0.9f  // 중하위 점수 약한 감점
+            else -> baseScore * 0.8f              // 하위 점수 감점
+        }.coerceIn(0f, 100f)  // 최종 점수는 0~100 사이로 제한
     }
 
     private fun compareThirdsProximity(
