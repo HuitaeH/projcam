@@ -63,7 +63,33 @@ class PoseSuggestionView(context: Context) : View(context) {
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), backgroundPaint)
 
             // 점수 표시
-            drawScore(canvas, result.overallScore)
+            val scoreX = width / 2f
+            val scoreBaseY = height * 0.15f
+
+            // 전체 점수
+            scorePaint.color = when {
+                result.overallScore >= 90 -> Color.GREEN
+                result.overallScore >= 70 -> Color.YELLOW
+                else -> Color.RED
+            }
+            canvas.drawText("전체: ${result.overallScore.toInt()}%", scoreX, scoreBaseY, scorePaint)
+
+            // 자세 점수
+            val positionScore = result.positionScore
+            scorePaint.color = when {
+                positionScore >= 90 -> Color.GREEN
+                positionScore >= 70 -> Color.YELLOW
+                else -> Color.RED
+            }
+            canvas.drawText("자세: ${positionScore.toInt()}%", scoreX, scoreBaseY + 100f, scorePaint)
+
+            // 구도 점수
+            scorePaint.color = when {
+                result.thirdsScore >= 90 -> Color.GREEN
+                result.thirdsScore >= 70 -> Color.YELLOW
+                else -> Color.RED
+            }
+            canvas.drawText("구도: ${result.thirdsScore.toInt()}%", scoreX, scoreBaseY + 200f, scorePaint)
 
             // 화살표 표시
             drawDirectionalArrows(canvas, result)
@@ -73,38 +99,20 @@ class PoseSuggestionView(context: Context) : View(context) {
         }
     }
 
-    private fun drawScore(canvas: Canvas, score: Float) {
-        val scoreText = "${score.toInt()}%"
-        val textX = width / 2f
-        val textY = height * 0.15f
-
-        // 점수에 따른 색상 변경
-        scorePaint.color = when {
-            score >= 90 -> Color.GREEN
-            score >= 70 -> Color.YELLOW
-            else -> Color.RED
-        }
-
-        canvas.drawText(scoreText, textX, textY, scorePaint)
-    }
-
     private fun drawDirectionalArrows(canvas: Canvas, result: PoseComparator.ComparisonResult) {
         // 점수가 낮을수록 화살표가 더 선명하게 표시
         arrowPaint.alpha = ((100 - result.overallScore) * 2.55f).toInt().coerceIn(0, 255)
 
         result.detailedScores.forEach { (key, score) ->
-            // 세밀한 점수 비교 대신 임계값을 두고 그리도록 변경
-            val threshold = 0.5f  // 예시: 점수가 0.5 이상일 때만 화살표 표시
+            val threshold = 0.5f  // 임계값
             when (key) {
                 "NOSE" -> {
                     if (score < threshold) {
-                        // NOSE 위치가 맞지 않으면 'CENTER' 방향으로 화살표 표시
                         drawArrow(canvas, "CENTER", arrowPaint)
                     }
                 }
                 "SHOULDERS" -> {
                     if (score < threshold) {
-                        // 어깨 위치가 맞지 않으면 'LEFT' 또는 'RIGHT' 화살표 표시
                         drawArrow(canvas, "LEFT", arrowPaint)
                         drawArrow(canvas, "RIGHT", arrowPaint)
                     }
@@ -112,6 +120,27 @@ class PoseSuggestionView(context: Context) : View(context) {
                 "HIPS" -> if (score < threshold) drawArrow(canvas, "DOWN", arrowPaint)
             }
         }
+
+        // 구도 점수가 낮으면 추가 안내 화살표
+        if (result.thirdsScore < 70f) {
+            drawThirdsGuideArrows(canvas)
+        }
+    }
+
+    private fun drawThirdsGuideArrows(canvas: Canvas) {
+        val arrowSize = width * 0.05f  // 구도 안내 화살표는 좀 더 작게
+
+        // 세로 삼분할선 표시
+        val thirdX1 = width / 3f
+        val thirdX2 = width * 2 / 3f
+        val lineY1 = height * 0.2f
+        val lineY2 = height * 0.8f
+
+        arrowPaint.color = Color.WHITE
+        arrowPaint.alpha = 128
+
+        canvas.drawLine(thirdX1, lineY1, thirdX1, lineY2, arrowPaint)
+        canvas.drawLine(thirdX2, lineY1, thirdX2, lineY2, arrowPaint)
     }
 
     private fun drawArrow(canvas: Canvas, direction: String, paint: Paint) {
@@ -167,6 +196,6 @@ class PoseSuggestionView(context: Context) : View(context) {
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-        arrowAnimator.cancel()  // 뷰가 제거될 때 애니메이터 정리
+        arrowAnimator.cancel()
     }
 }

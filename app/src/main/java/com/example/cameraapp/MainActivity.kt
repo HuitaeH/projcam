@@ -46,8 +46,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import com.example.cameraapp.analyzer.PoseComparator
+import com.example.cameraapp.model.PoseLandmark
 import com.example.cameraapp.model.Referencepose
 import com.example.cameraapp.ui.theme.overlay.PoseSuggestionView
+import com.google.mediapipe.formats.proto.LandmarkProto
+
 
 // MainActivity class
 class MainActivity : ComponentActivity() {
@@ -277,17 +280,51 @@ class MainActivity : ComponentActivity() {
         return BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
     }
 
-    private fun handlePoseResult(result: PoseLandmarkerResult, mpImage: MPImage) {
-        result.landmarks().firstOrNull()?.let { landmarks ->
-            // 포즈 비교 실행
-            val comparisonResult = poseComparator.comparePose(landmarks, referencePose)
+    private val smoothingFactor = 0.8f  // Adjust between 0 (more smoothing) and 1 (less smoothing)
+    private var previousLandmarks: List<PoseLandmark>? = null
 
-            // UI 업데이트
-            runOnUiThread {
-                poseSuggestionView.updateResult(comparisonResult)
-            }
+
+
+    private fun smoothLandmarks(currentLandmarks: List<PoseLandmark>): List<PoseLandmark> {
+        if (previousLandmarks == null) {
+            previousLandmarks = currentLandmarks
+            return currentLandmarks
+        }
+
+        return currentLandmarks.mapIndexed { index, current ->
+            val previous = previousLandmarks!![index]
+            PoseLandmark(
+                x = smoothingFactor * previous.x + (1 - smoothingFactor) * current.x,
+                y = smoothingFactor * previous.y + (1 - smoothingFactor) * current.y
+                // If Z is not available, omit it
+            )
+        }.also {
+            previousLandmarks = it
         }
     }
+
+    private fun smoothLandmarks(currentLandmarks: List<LandmarkProto.NormalizedLandmark>): List<PoseLandmark> {
+        val poseLandmarks = currentLandmarks.map {
+            PoseLandmark(x = it.x(), y = it.y())  // Assuming PoseLandmark has a similar constructor
+        }
+
+        if (previousLandmarks == null) {
+            previousLandmarks = poseLandmarks
+            return poseLandmarks
+        }
+
+        return poseLandmarks.mapIndexed { index, current ->
+            val previous = previousLandmarks!![index]
+            PoseLandmark(
+                x = smoothingFactor * previous.x + (1 - smoothingFactor) * current.x,
+                y = smoothingFactor * previous.y + (1 - smoothingFactor) * current.y
+            )
+        }.also {
+            previousLandmarks = it
+        }
+    }
+
+
 
     private fun takePhoto() {
         val imageCapture = imageCapture ?: return
