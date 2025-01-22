@@ -17,30 +17,28 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
     }
 
 //    // Access values from average_com and average_pose
-//    val comX = referenceCom.average_com?.x ?: 0f // Safe access with a default value of 0f if null
-//    val comY = referenceCom.average_com?.y ?: 0f // Same for y value
-
     val comX = referenceCom.average_com?.x ?: 0f // Safe access with a default value of 0f if null
     val comY = referenceCom.average_com?.y ?: 0f // Same for y value
 
     // Using safe calls for average_pose values and providing default values
-    val noseDataX = referencePose.average_pose["NOSE"]?.x?.plus(comX) ?: comX
-    val noseDataY = referencePose.average_pose["NOSE"]?.y?.plus(comY) ?: comY
+
     val lshoulderDataX = referencePose.average_pose["LEFT_SHOULDER"]?.x?.plus(comX) ?: comX
     val rshoulderDataX = referencePose.average_pose["RIGHT_SHOULDER"]?.x?.plus(comX) ?: comX
     val lshoulderDataY = referencePose.average_pose["LEFT_SHOULDER"]?.y?.plus(comY) ?: comY
     val rshoulderDataY = referencePose.average_pose["RIGHT_SHOULDER"]?.y?.plus(comY) ?: comY
-
-    // Corrected averaging for shoulder
-    val shoulderDataX = (lshoulderDataX + rshoulderDataX) / 2
-    val shoulderDataY = (lshoulderDataY + rshoulderDataY) / 2
-
     // Corrected calculation for hip data (using X with X, and Y with Y)
     val lhipDataX = referencePose.average_pose["LEFT_HIP"]?.x?.plus(comX) ?: comX
     val rhipDataX = referencePose.average_pose["RIGHT_HIP"]?.x?.plus(comX) ?: comX
     val lhipDataY = referencePose.average_pose["LEFT_HIP"]?.y?.plus(comY) ?: comY
     val rhipDataY = referencePose.average_pose["RIGHT_HIP"]?.y?.plus(comY) ?: comY
 
+
+
+    val noseDataX = referencePose.average_pose["NOSE"]?.x?.plus(comX) ?: comX
+    val noseDataY = referencePose.average_pose["NOSE"]?.y?.plus(comY) ?: comY
+    // Corrected averaging for shoulder
+    val shoulderDataX = (lshoulderDataX + rshoulderDataX) / 2
+    val shoulderDataY = (lshoulderDataY + rshoulderDataY) / 2
     // Corrected averaging for hip
     val hipDataX = (lhipDataX + rhipDataX) / 2
     val hipDataY = (lhipDataY + rhipDataY) / 2
@@ -54,7 +52,7 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
     data class ComparisonResult(
         val overallScore: Float,           // 전체 유사도 점수 (0~100)
         val positionScore: Float,          // 자세 점수
-        val thirdsScore: Float,            // 구도 점수
+        val centerScore: Float,            // 구도 점수
         val suggestions: List<String>,     // 개선을 위한 제안사항
         val detailedScores: Map<String, Float>  // 각 부위별 유사도 점수
     )
@@ -107,7 +105,7 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         differences["HIPS"] = (leftHipDiff + rightHipDiff) / 2
 
         // 2. 삼분할 구도 비교
-        val thirdsScore = compareDataProximity(
+        val comScore = compareDataProximity(
             currentLandmarks,
             imageWidth,
             imageHeight,
@@ -115,17 +113,17 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         )
 
         // 3. 제안사항 생성
-        generateSuggestions(differences, thirdsScore, suggestions)
+        generateSuggestions(differences, comScore, suggestions)
 
         // 4. 최종 점수 계산
         val positionScore = calculatePositionScore(differences)
 
-        val overallScore = positionScore * 0.7f + thirdsScore * 0.3f
+        val overallScore = positionScore * 0.7f + comScore * 0.3f
 
         return ComparisonResult(
             overallScore = overallScore,
             positionScore = positionScore,  // 추가
-            thirdsScore = thirdsScore,
+            centerScore = comScore,
             suggestions = suggestions,
             detailedScores = differences
         )
@@ -254,6 +252,10 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         // 5초마다 로그 출력
         if (shouldLog) {
             Log.d("ThirdsGuide", """
+                COM:
+                - X: $comX
+                - Y: $comY
+                
                 코 (X):
                 - 현재: $currentNoseXProximity
                 - 참조: ${noseDataX}

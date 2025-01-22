@@ -77,13 +77,14 @@ class MainActivity : ComponentActivity() {
             val jsonPose = assets.open("half_average_posture.json").bufferedReader().use { it.readText() }
             referenceCom = Gson().fromJson(jsonCOM, ReferencePoints::class.java)
             referencePose = Gson().fromJson(jsonPose, ReferencePoints::class.java)
+            poseComparator = PoseComparator(referencePose, referenceCom)
         } catch (e: Exception) {
             Log.e(TAG, "Error loading JSON files", e)
         }
 
 
 
-        poseComparator = PoseComparator(referencePose, referenceCom)
+
         poseSuggestionView = PoseSuggestionView(this)
 
 
