@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Rect
 import android.util.Log
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
@@ -55,21 +56,27 @@ class BodyAnalyzer(
     }
 
     fun drawPose(canvas: Canvas, landmarks: List<NormalizedLandmark>) {
+        val rect = Rect()
+        canvas.getClipBounds(rect)
+        val topMargin = rect.height() * 0.007f  // 1.3/6 비율로 상단 여백 계산
+
+        canvas.save()
+        canvas.clipRect(0f, topMargin, rect.width().toFloat(), rect.height().toFloat())
+
         // 랜드마크 점 그리기
         for (landmark in landmarks) {
-
-            val padding = 0.1f  // 10% 여유 공간
-
             canvas.drawCircle(
-                (1 - landmark.y()).coerceIn(padding, 1 - padding) * canvas.width,  // y 좌표를 x로 변환
-                landmark.x().coerceIn(padding, 1 - padding) * canvas.height,       // x 좌표를 y로 변환
+                (1 - landmark.y()) * canvas.width,
+                landmark.x() * canvas.height,
                 8f,
                 paint
             )
         }
 
         // 연결선 그리기
-        drawConnections(canvas, landmarks)  // landmarks를 그대로 전달
+        drawConnections(canvas, landmarks)
+
+        canvas.restore()
     }
 
     private fun drawConnections(canvas: Canvas, landmarks: List<NormalizedLandmark>) {  // NormalizedLandmark로 변경
