@@ -59,6 +59,8 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.google.mediapipe:tasks-vision:0.10.8")
+    implementation("androidx.compose.material:material-icons-core:1.5.4")
+    implementation("androidx.compose.material:material-icons-extended:1.5.4")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
