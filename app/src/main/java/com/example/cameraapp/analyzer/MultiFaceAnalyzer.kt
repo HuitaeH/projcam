@@ -17,11 +17,15 @@ class MultiFaceAnalyzer(context: Context) {
     private var lastResult: FaceLandmarkerResult? = null
     private var selectedFaceIndex: Int? = null
     private val faceBoxes = mutableListOf<RectF>()
+    private var lastProcessingTimeMs = 0L
+    private val MIN_TIME_BETWEEN_FRAMES_MS = 30L
+
 
     private val landmarkPaint = Paint().apply {
         color = Color.CYAN
         style = Paint.Style.FILL
-        strokeWidth = 2f
+        strokeWidth = 4f
+        alpha = 200
     }
 
     private val boxPaint = Paint().apply {
@@ -37,15 +41,19 @@ class MultiFaceAnalyzer(context: Context) {
         val options = FaceLandmarker.FaceLandmarkerOptions.builder()
             .setBaseOptions(baseOptions)
             .setRunningMode(RunningMode.LIVE_STREAM)
-            .setNumFaces(5)
+            .setNumFaces(3)
+            .setMinFaceDetectionConfidence(0.3f)    // 얼굴 감지 신뢰도 임계값 낮춤
+            .setMinFacePresenceConfidence(0.3f)     // 얼굴 존재 신뢰도 임계값 낮춤
+            .setMinTrackingConfidence(0.3f)         // 추적 신뢰도 임계값 낮춤
             .setOutputFaceBlendshapes(true)
             .setOutputFacialTransformationMatrixes(true)
             .setResultListener { result: FaceLandmarkerResult, image: MPImage ->
                 lastResult = result
                 updateFaceBoxes(result)
+                //Log.d(TAG, "Detected faces: ${result.faceLandmarks().size}")
             }
             .setErrorListener { error: RuntimeException ->
-                Log.e(TAG, "Face detection failed: ${error.message}")
+                //Log.e(TAG, "Face detection failed: ${error.message}")
             }
             .build()
 
@@ -53,8 +61,14 @@ class MultiFaceAnalyzer(context: Context) {
     }
 
     fun detectFaces(image: MPImage) {
+        val currentTimeMs = System.currentTimeMillis()
+        if (currentTimeMs - lastProcessingTimeMs < MIN_TIME_BETWEEN_FRAMES_MS) {
+            return
+        }
+
         try {
-            faceLandmarker.detectAsync(image, System.currentTimeMillis())
+            faceLandmarker.detectAsync(image, currentTimeMs)
+            lastProcessingTimeMs = currentTimeMs
         } catch (e: Exception) {
             Log.e(TAG, "Face detection failed", e)
         }
@@ -69,13 +83,14 @@ class MultiFaceAnalyzer(context: Context) {
             var maxY = Float.MIN_VALUE
 
             landmarks.forEach { landmark ->
-                minX = minOf(minX, landmark.x())
-                minY = minOf(minY, landmark.y())
-                maxX = maxOf(maxX, landmark.x())
-                maxY = maxOf(maxY, landmark.y())
+                minX = minOf(minX, 1 - landmark.y())  // y 좌표를 x로 변환
+                minY = minOf(minY, landmark.x())      // x 좌표를 y로 변환
+                maxX = maxOf(maxX, 1 - landmark.y())  // y 좌표를 x로 변환
+                maxY = maxOf(maxY, landmark.x())      // x 좌표를 y로 변환
             }
 
             faceBoxes.add(RectF(minX, minY, maxX, maxY))
+            Log.d(TAG, "Face $index bounds: left=$minX, top=$minY, right=$maxX, bottom=$maxY")
         }
     }
 
@@ -83,17 +98,17 @@ class MultiFaceAnalyzer(context: Context) {
         faceBoxes.forEachIndexed { index, box ->
             boxPaint.color = if (index == selectedFaceIndex) Color.RED else Color.GREEN
             canvas.drawRect(
-                box.left * canvas.width,
-                box.top * canvas.height,
-                box.right * canvas.width,
+                (1 - box.left) * canvas.width,    // 변환된 x 좌표
+                box.top * canvas.height,          // y 좌표
+                (1 - box.right) * canvas.width,   // 변환된 x 좌표
                 box.bottom * canvas.height,
                 boxPaint
             )
 
             lastResult?.faceLandmarks()?.getOrNull(index)?.forEach { landmark ->
                 canvas.drawCircle(
-                    landmark.x() * canvas.width,
-                    landmark.y() * canvas.height,
+                    (1 - landmark.y()) * canvas.width,  // y 좌표를 x로 변환
+                    landmark.x() * canvas.height,
                     3f,
                     landmarkPaint
                 )

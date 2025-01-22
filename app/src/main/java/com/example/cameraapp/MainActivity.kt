@@ -1,5 +1,6 @@
 package com.example.cameraapp
 
+import com.google.gson.Gson
 import android.Manifest
 import android.content.ContentValues
 import android.content.pm.PackageManager
@@ -44,11 +45,17 @@ import java.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import com.example.cameraapp.analyzer.PoseComparator
+import com.example.cameraapp.model.Referencepose
+import com.example.cameraapp.ui.theme.overlay.PoseSuggestionView
 
 class MainActivity : ComponentActivity() {
     private var imageCapture: ImageCapture? = null
     private lateinit var bodyAnalyzer: BodyAnalyzer
     private lateinit var multiFaceAnalyzer: MultiFaceAnalyzer
+    private lateinit var poseComparator: PoseComparator
+    private lateinit var referencePose: Referencepose
+    private lateinit var poseSuggestionView: PoseSuggestionView
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -62,6 +69,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // JSON 파일 로드
+        val jsonString = assets.open("reference_pose.json").bufferedReader().use { it.readText() }
+        referencePose = Gson().fromJson(jsonString, Referencepose::class.java)
+
+        poseComparator = PoseComparator()
+        poseSuggestionView = PoseSuggestionView(this)
+
 
         bodyAnalyzer = BodyAnalyzer(this) { result: PoseLandmarkerResult, mpImage: MPImage ->
             handlePoseResult(result, mpImage)
@@ -186,6 +201,11 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier.fillMaxSize()
             )
 
+            AndroidView(
+                factory = { poseSuggestionView },
+                modifier = Modifier.fillMaxSize()
+            )
+
             LaunchedEffect(Unit) {
                 while(true) {
                     withContext(Dispatchers.Main) {
@@ -234,7 +254,25 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handlePoseResult(result: PoseLandmarkerResult, mpImage: MPImage) {
-        Log.d(TAG, "Detected poses: ${result.landmarks()}")
+        result.landmarks().firstOrNull()?.let { landmarks ->
+
+            val imageWidth = mpImage.width
+            val imageHeight = mpImage.height
+
+            // 포즈 비교 실행
+            val comparisonResult = poseComparator.comparePose(
+                landmarks,
+                referencePose,
+                imageWidth,
+                imageHeight,
+                poseSuggestionView.getShouldLog()
+            )
+
+            // UI 업데이트
+            runOnUiThread {
+                poseSuggestionView.updateResult(comparisonResult)
+            }
+        }
     }
 
     private fun takePhoto() {

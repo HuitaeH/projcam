@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.google.mediapipe:tasks-vision:0.10.8")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
