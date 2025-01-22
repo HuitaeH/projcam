@@ -50,10 +50,10 @@ class MultiFaceAnalyzer(context: Context) {
             .setResultListener { result: FaceLandmarkerResult, image: MPImage ->
                 lastResult = result
                 updateFaceBoxes(result)
-                Log.d(TAG, "Detected faces: ${result.faceLandmarks().size}")
+                //Log.d(TAG, "Detected faces: ${result.faceLandmarks().size}")
             }
             .setErrorListener { error: RuntimeException ->
-                Log.e(TAG, "Face detection failed: ${error.message}")
+                //Log.e(TAG, "Face detection failed: ${error.message}")
             }
             .build()
 

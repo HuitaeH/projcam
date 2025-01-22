@@ -33,8 +33,8 @@ class BodyAnalyzer(
             .setBaseOptions(baseOptions)
             .setRunningMode(RunningMode.LIVE_STREAM)
             .setNumPoses(3)
-            .setMinPoseDetectionConfidence(0.3f)
-            .setMinPosePresenceConfidence(0.3f)
+            .setMinPoseDetectionConfidence(0.5f)
+            .setMinPosePresenceConfidence(0.5f)
             .setMinTrackingConfidence(0.3f)
             .setResultListener { result: PoseLandmarkerResult, mpImage: MPImage ->
                 lastResult = result

@@ -134,11 +134,11 @@
         }
     },
     "average_proximity_to_thirds": {
-        "average_nose_x_proximity": 635.1266046464443,
-        "average_nose_y_proximity": 1351.1279834145207,
-        "average_shoulder_x_proximity": 779.3745898431388,
-        "average_shoulder_y_proximity": 1011.3610578054341,
-        "average_hip_x_proximity": 899.7936580205115,
-        "average_hip_y_proximity": 1142.3845990532536
+        "average_nose_x_proximity": 0.15797731263489367,
+        "average_nose_y_proximity": 0.258322762062321,
+        "average_shoulder_x_proximity": 0.19363142722575694,
+        "average_shoulder_y_proximity": 0.1936144107310787,
+        "average_hip_x_proximity": 0.2231111983205642,
+        "average_hip_y_proximity": 0.21899135899072342
     }
 }

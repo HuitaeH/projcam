@@ -46,10 +46,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import com.example.cameraapp.analyzer.PoseComparator
-import com.example.cameraapp.model.PoseLandmark
 import com.example.cameraapp.model.Referencepose
 import com.example.cameraapp.ui.theme.overlay.PoseSuggestionView
-import com.google.mediapipe.formats.proto.LandmarkProto
 
 
 // MainActivity class
@@ -168,10 +166,8 @@ class MainActivity : ComponentActivity() {
                         .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                         .build()
 
-                    // Pass imageCapture instance to callback
                     imageCapture(imageCaptureUseCase)
 
-                    // Setup image analyzer
                     val imageAnalyzer = ImageAnalysis.Builder()
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
@@ -284,47 +280,24 @@ class MainActivity : ComponentActivity() {
     private var previousLandmarks: List<PoseLandmark>? = null
 
 
+            val imageWidth = mpImage.width
+            val imageHeight = mpImage.height
 
-    private fun smoothLandmarks(currentLandmarks: List<PoseLandmark>): List<PoseLandmark> {
-        if (previousLandmarks == null) {
-            previousLandmarks = currentLandmarks
-            return currentLandmarks
-        }
-
-        return currentLandmarks.mapIndexed { index, current ->
-            val previous = previousLandmarks!![index]
-            PoseLandmark(
-                x = smoothingFactor * previous.x + (1 - smoothingFactor) * current.x,
-                y = smoothingFactor * previous.y + (1 - smoothingFactor) * current.y
-                // If Z is not available, omit it
+            // 포즈 비교 실행
+            val comparisonResult = poseComparator.comparePose(
+                landmarks,
+                referencePose,
+                imageWidth,
+                imageHeight,
+                poseSuggestionView.getShouldLog()
             )
-        }.also {
-            previousLandmarks = it
+
+            // UI 업데이트
+            runOnUiThread {
+                poseSuggestionView.updateResult(comparisonResult)
+            }
         }
     }
-
-    private fun smoothLandmarks(currentLandmarks: List<LandmarkProto.NormalizedLandmark>): List<PoseLandmark> {
-        val poseLandmarks = currentLandmarks.map {
-            PoseLandmark(x = it.x(), y = it.y())  // Assuming PoseLandmark has a similar constructor
-        }
-
-        if (previousLandmarks == null) {
-            previousLandmarks = poseLandmarks
-            return poseLandmarks
-        }
-
-        return poseLandmarks.mapIndexed { index, current ->
-            val previous = previousLandmarks!![index]
-            PoseLandmark(
-                x = smoothingFactor * previous.x + (1 - smoothingFactor) * current.x,
-                y = smoothingFactor * previous.y + (1 - smoothingFactor) * current.y
-            )
-        }.also {
-            previousLandmarks = it
-        }
-    }
-
-
 
     private fun takePhoto() {
         val imageCapture = imageCapture ?: return
@@ -372,8 +345,8 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
-        private const val TAG = "CameraApp" // Log tag
-        private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS" // Filename format for images
-        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA) // Permissions required for camera
+        private const val TAG = "CameraApp"
+        private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
+        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
 }

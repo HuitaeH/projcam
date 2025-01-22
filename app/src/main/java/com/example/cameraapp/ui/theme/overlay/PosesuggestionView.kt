@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import android.view.MotionEvent
 import android.view.View
 import com.example.cameraapp.analyzer.PoseComparator
 
@@ -21,6 +22,13 @@ class PoseSuggestionView(context: Context) : View(context) {
             invalidate()
         }
         start()
+    }
+
+    private val gridPaint = Paint().apply {
+        color = Color.WHITE
+        alpha = 70  // 투명도 설정
+        strokeWidth = 2f
+        style = Paint.Style.STROKE
     }
 
     private val scorePaint = Paint().apply {
@@ -55,8 +63,27 @@ class PoseSuggestionView(context: Context) : View(context) {
         invalidate()
     }
 
+    private val logButtonPaint = Paint().apply {
+        color = Color.WHITE
+        style = Paint.Style.FILL
+        alpha = 180
+    }
+
+    private val logButtonTextPaint = Paint().apply {
+        color = Color.BLACK
+        textSize = 40f
+        textAlign = Paint.Align.CENTER
+        isFakeBoldText = true
+    }
+
+
+    private var shouldLog = false
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+
+        // 삼분할선 먼저 그리기
+        drawThirdsGrid(canvas)
 
         comparisonResult?.let { result ->
             // 반투명 배경
@@ -89,14 +116,87 @@ class PoseSuggestionView(context: Context) : View(context) {
                 result.thirdsScore >= 70 -> Color.YELLOW
                 else -> Color.RED
             }
-            canvas.drawText("구도: ${result.thirdsScore.toInt()}%", scoreX, scoreBaseY + 200f, scorePaint)
+            canvas.drawText(
+                "구도: ${result.thirdsScore.toInt()}%",
+                scoreX,
+                scoreBaseY + 200f,
+                scorePaint
+            )
 
             // 화살표 표시
             drawDirectionalArrows(canvas, result)
 
             // 제안사항 표시
             drawSuggestions(canvas, result.suggestions)
+
+            // 로그 버튼 그리기
+            val buttonWidth = 150f
+            val buttonHeight = 80f
+            val buttonLeft = width - buttonWidth - 20f
+            val buttonTop = 20f
+            canvas.drawRoundRect(
+                buttonLeft,
+                buttonTop,
+                buttonLeft + buttonWidth,
+                buttonTop + buttonHeight,
+                20f,
+                20f,
+                logButtonPaint
+            )
+            canvas.drawText(
+                "로그",
+                buttonLeft + buttonWidth / 2,
+                buttonTop + buttonHeight / 2 + 15f,
+                logButtonTextPaint
+            )
         }
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                // 버튼 영역 체크
+                val buttonWidth = 150f
+                val buttonHeight = 80f
+                val buttonLeft = width - buttonWidth - 20f
+                val buttonTop = 20f
+                val x = event.x
+                val y = event.y
+
+                if (x >= buttonLeft && x <= buttonLeft + buttonWidth &&
+                    y >= buttonTop && y <= buttonTop + buttonHeight) {
+                    shouldLog = true
+                    return true
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                shouldLog = false
+            }
+        }
+        return super.onTouchEvent(event)
+    }
+
+        fun getShouldLog(): Boolean {
+            return shouldLog
+        }
+
+
+    private fun drawThirdsGrid(canvas: Canvas) {
+        // 세로 삼분할선
+        val thirdX1 = width / 3f
+        val thirdX2 = width * 2 / 3f
+
+        // 가로 삼분할선
+        val thirdY1 = height / 3f
+        val thirdY2 = height * 2 / 3f
+
+        // 세로선 그리기
+        canvas.drawLine(thirdX1, 0f, thirdX1, height.toFloat(), gridPaint)
+        canvas.drawLine(thirdX2, 0f, thirdX2, height.toFloat(), gridPaint)
+
+        // 가로선 그리기
+        canvas.drawLine(0f, thirdY1, width.toFloat(), thirdY1, gridPaint)
+        canvas.drawLine(0f, thirdY2, width.toFloat(), thirdY2, gridPaint)
     }
 
     private fun drawDirectionalArrows(canvas: Canvas, result: PoseComparator.ComparisonResult) {
@@ -120,27 +220,6 @@ class PoseSuggestionView(context: Context) : View(context) {
                 "HIPS" -> if (score < threshold) drawArrow(canvas, "DOWN", arrowPaint)
             }
         }
-
-        // 구도 점수가 낮으면 추가 안내 화살표
-        if (result.thirdsScore < 70f) {
-            drawThirdsGuideArrows(canvas)
-        }
-    }
-
-    private fun drawThirdsGuideArrows(canvas: Canvas) {
-        val arrowSize = width * 0.05f  // 구도 안내 화살표는 좀 더 작게
-
-        // 세로 삼분할선 표시
-        val thirdX1 = width / 3f
-        val thirdX2 = width * 2 / 3f
-        val lineY1 = height * 0.2f
-        val lineY2 = height * 0.8f
-
-        arrowPaint.color = Color.WHITE
-        arrowPaint.alpha = 128
-
-        canvas.drawLine(thirdX1, lineY1, thirdX1, lineY2, arrowPaint)
-        canvas.drawLine(thirdX2, lineY1, thirdX2, lineY2, arrowPaint)
     }
 
     private fun drawArrow(canvas: Canvas, direction: String, paint: Paint) {
