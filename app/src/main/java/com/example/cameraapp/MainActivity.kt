@@ -288,7 +288,7 @@ class MainActivity : ComponentActivity() {
                 ) {
 
                     // 왼쪽 Spacer (중앙 정렬을 위한 여백)
-                    Spacer(modifier = Modifier.weight(1.5f))
+                    Spacer(modifier = Modifier.weight(1.3f))
 
                     // 사진 촬영 버튼
                     Button(
@@ -378,8 +378,8 @@ class MainActivity : ComponentActivity() {
                 landmarks,
                 referencePose,
                 imageWidth,
-                imageHeight,
-                poseSuggestionView.getShouldLog()
+                imageHeight
+                //poseSuggestionView.getShouldLog()
             )
 
             // UI 업데이트
@@ -398,7 +398,7 @@ class MainActivity : ComponentActivity() {
             put(MediaStore.MediaColumns.DISPLAY_NAME, name)
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CameraApp")
+                put(MediaStore.Images.Media.RELATIVE_PATH, "DCIM/Camera")
             }
         }
 
@@ -419,6 +419,8 @@ class MainActivity : ComponentActivity() {
                     val msg = "사진 저장 완료: ${output.savedUri}"
                     Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
                     Log.d(TAG, msg)
+
+
                 }
             }
         )

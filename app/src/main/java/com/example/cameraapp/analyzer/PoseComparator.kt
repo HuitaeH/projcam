@@ -29,14 +29,6 @@ class PoseComparator {
         val detailedScores: Map<String, Float>  // 각 부위별 유사도 점수
     )
 
-    private fun shouldLogNow(): Boolean {
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastLogTime >= LOG_INTERVAL) {
-            lastLogTime = currentTime
-            return true
-        }
-        return false
-    }
 
 
     fun comparePose(
@@ -44,7 +36,7 @@ class PoseComparator {
         referencePose: Referencepose,
         imageWidth: Int,
         imageHeight: Int,
-        shouldLog: Boolean  // 추가된 파라미터
+        //shouldLog: Boolean  // 추가된 파라미터
     ): ComparisonResult {
         val differences = mutableMapOf<String, Float>()
         val suggestions = mutableListOf<String>()
@@ -81,7 +73,7 @@ class PoseComparator {
             referencePose.average_proximity_to_thirds,
             imageWidth,
             imageHeight,
-            shouldLog  // shouldLog 전달
+            //shouldLog  // shouldLog 전달
         )
 
         // 3. 제안사항 생성
@@ -181,7 +173,7 @@ class PoseComparator {
         referenceThirds: ThirdsProximity,
         imageWidth: Int,
         imageHeight: Int,
-        shouldLog: Boolean
+        //shouldLog: Boolean
     ): Float {
         // 현재 랜드마크의 위치를 픽셀 좌표로 변환
         val nose = currentLandmarks[0]
@@ -239,39 +231,39 @@ class PoseComparator {
         val finalScore = (noseScore + shoulderScore + hipScore) / 3
 
         // 5초마다 로그 출력
-        if (shouldLog) {
-            Log.d("ThirdsGuide", """
-                코 (X):
-                - 현재: $currentNoseXProximity
-                - 참조: ${referenceThirds.average_nose_x_proximity}
-                - 차이: $noseXDiff
-                
-                코 (Y):
-                - 현재: $currentNoseYProximity
-                - 참조: ${referenceThirds.average_nose_y_proximity}
-                - 차이: $noseYDiff
-                
-                어깨 (X):
-                - 현재: $currentShoulderXProximity
-                - 참조: ${referenceThirds.average_shoulder_x_proximity}
-                - 차이: $shoulderXDiff
-                
-                어깨 (Y):
-                - 현재: $currentShoulderYProximity
-                - 참조: ${referenceThirds.average_shoulder_y_proximity}
-                - 차이: $shoulderYDiff
-                
-                엉덩이 (X):
-                - 현재: $currentHipXProximity
-                - 참조: ${referenceThirds.average_hip_x_proximity}
-                - 차이: $hipXDiff
-                
-                엉덩이 (Y):
-                - 현재: $currentHipYProximity
-                - 참조: ${referenceThirds.average_hip_y_proximity}
-                - 차이: $hipYDiff
-            """.trimIndent())
-        }
+//        if (shouldLog) {
+//            Log.d("ThirdsGuide", """
+//                코 (X):
+//                - 현재: $currentNoseXProximity
+//                - 참조: ${referenceThirds.average_nose_x_proximity}
+//                - 차이: $noseXDiff
+//
+//                코 (Y):
+//                - 현재: $currentNoseYProximity
+//                - 참조: ${referenceThirds.average_nose_y_proximity}
+//                - 차이: $noseYDiff
+//
+//                어깨 (X):
+//                - 현재: $currentShoulderXProximity
+//                - 참조: ${referenceThirds.average_shoulder_x_proximity}
+//                - 차이: $shoulderXDiff
+//
+//                어깨 (Y):
+//                - 현재: $currentShoulderYProximity
+//                - 참조: ${referenceThirds.average_shoulder_y_proximity}
+//                - 차이: $shoulderYDiff
+//
+//                엉덩이 (X):
+//                - 현재: $currentHipXProximity
+//                - 참조: ${referenceThirds.average_hip_x_proximity}
+//                - 차이: $hipXDiff
+//
+//                엉덩이 (Y):
+//                - 현재: $currentHipYProximity
+//                - 참조: ${referenceThirds.average_hip_y_proximity}
+//                - 차이: $hipYDiff
+//            """.trimIndent())
+//        }
 
         return finalScore
     }

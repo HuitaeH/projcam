@@ -77,7 +77,7 @@ class PoseSuggestionView(context: Context) : View(context) {
     }
 
 
-    private var shouldLog = false
+    //private var shouldLog = false
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -124,61 +124,61 @@ class PoseSuggestionView(context: Context) : View(context) {
             )
 
             // 화살표 표시
-            drawDirectionalArrows(canvas, result)
+            //drawDirectionalArrows(canvas, result)
 
             // 제안사항 표시
-            drawSuggestions(canvas, result.suggestions)
+            //drawSuggestions(canvas, result.suggestions)
 
             // 로그 버튼 그리기
-            val buttonWidth = 150f
-            val buttonHeight = 80f
-            val buttonLeft = width - buttonWidth - 20f
-            val buttonTop = 20f
-            canvas.drawRoundRect(
-                buttonLeft,
-                buttonTop,
-                buttonLeft + buttonWidth,
-                buttonTop + buttonHeight,
-                20f,
-                20f,
-                logButtonPaint
-            )
-            canvas.drawText(
-                "로그",
-                buttonLeft + buttonWidth / 2,
-                buttonTop + buttonHeight / 2 + 15f,
-                logButtonTextPaint
-            )
+//            val buttonWidth = 150f
+//            val buttonHeight = 80f
+//            val buttonLeft = width - buttonWidth - 20f
+//            val buttonTop = 20f
+//            canvas.drawRoundRect(
+//                buttonLeft,
+//                buttonTop,
+//                buttonLeft + buttonWidth,
+//                buttonTop + buttonHeight,
+//                20f,
+//                20f,
+//                logButtonPaint
+
+//            canvas.drawText(
+//                "로그",
+//                buttonLeft + buttonWidth / 2,
+//                buttonTop + buttonHeight / 2 + 15f,
+//                logButtonTextPaint
+           // )
         }
     }
 
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                // 버튼 영역 체크
-                val buttonWidth = 150f
-                val buttonHeight = 80f
-                val buttonLeft = width - buttonWidth - 20f
-                val buttonTop = 20f
-                val x = event.x
-                val y = event.y
-
-                if (x >= buttonLeft && x <= buttonLeft + buttonWidth &&
-                    y >= buttonTop && y <= buttonTop + buttonHeight) {
-                    shouldLog = true
-                    return true
-                }
-            }
-            MotionEvent.ACTION_UP -> {
-                shouldLog = false
-            }
-        }
-        return super.onTouchEvent(event)
-    }
-
-        fun getShouldLog(): Boolean {
-            return shouldLog
-        }
+//    override fun onTouchEvent(event: MotionEvent): Boolean {
+//        when (event.action) {
+//            MotionEvent.ACTION_DOWN -> {
+//                // 버튼 영역 체크
+//                val buttonWidth = 150f
+//                val buttonHeight = 80f
+//                val buttonLeft = width - buttonWidth - 20f
+//                val buttonTop = 20f
+//                val x = event.x
+//                val y = event.y
+//
+//                if (x >= buttonLeft && x <= buttonLeft + buttonWidth &&
+//                    y >= buttonTop && y <= buttonTop + buttonHeight) {
+//                    shouldLog = true
+//                    return true
+//                }
+//            }
+//            MotionEvent.ACTION_UP -> {
+//                shouldLog = false
+//            }
+//        }
+//        return super.onTouchEvent(event)
+//    }
+//
+//        fun getShouldLog(): Boolean {
+//            return shouldLog
+//        }
 
 
     private fun drawThirdsGrid(canvas: Canvas) {
@@ -199,72 +199,72 @@ class PoseSuggestionView(context: Context) : View(context) {
         canvas.drawLine(0f, thirdY2, width.toFloat(), thirdY2, gridPaint)
     }
 
-    private fun drawDirectionalArrows(canvas: Canvas, result: PoseComparator.ComparisonResult) {
-        // 점수가 낮을수록 화살표가 더 선명하게 표시
-        arrowPaint.alpha = ((100 - result.overallScore) * 2.55f).toInt().coerceIn(0, 255)
+//    private fun drawDirectionalArrows(canvas: Canvas, result: PoseComparator.ComparisonResult) {
+//        // 점수가 낮을수록 화살표가 더 선명하게 표시
+//        arrowPaint.alpha = ((100 - result.overallScore) * 2.55f).toInt().coerceIn(0, 255)
+//
+//        result.detailedScores.forEach { (key, score) ->
+//            val threshold = 0.5f  // 임계값
+//            when (key) {
+//                "NOSE" -> {
+//                    if (score < threshold) {
+//                        drawArrow(canvas, "CENTER", arrowPaint)
+//                    }
+//                }
+//                "SHOULDERS" -> {
+//                    if (score < threshold) {
+//                        drawArrow(canvas, "LEFT", arrowPaint)
+//                        drawArrow(canvas, "RIGHT", arrowPaint)
+//                    }
+//                }
+//                "HIPS" -> if (score < threshold) drawArrow(canvas, "DOWN", arrowPaint)
+//            }
+//        }
+//    }
 
-        result.detailedScores.forEach { (key, score) ->
-            val threshold = 0.5f  // 임계값
-            when (key) {
-                "NOSE" -> {
-                    if (score < threshold) {
-                        drawArrow(canvas, "CENTER", arrowPaint)
-                    }
-                }
-                "SHOULDERS" -> {
-                    if (score < threshold) {
-                        drawArrow(canvas, "LEFT", arrowPaint)
-                        drawArrow(canvas, "RIGHT", arrowPaint)
-                    }
-                }
-                "HIPS" -> if (score < threshold) drawArrow(canvas, "DOWN", arrowPaint)
-            }
-        }
-    }
-
-    private fun drawArrow(canvas: Canvas, direction: String, paint: Paint) {
-        val path = Path()
-        val arrowSize = width * 0.1f
-        val centerX = width / 2f
-        val centerY = height / 2f
-
-        // 화살표 움직임을 위한 오프셋 계산
-        val offset = (arrowSize * 0.2f) * Math.sin(arrowPhase * 2 * Math.PI).toFloat()
-
-        when (direction) {
-            "CENTER" -> {
-                paint.color = Color.YELLOW
-                val radius = arrowSize * 0.5f
-                val pulseRadius = radius + (arrowSize * 0.1f) * Math.sin(arrowPhase * 2 * Math.PI).toFloat()
-                canvas.drawCircle(centerX, centerY, pulseRadius, paint)
-            }
-            "LEFT" -> {
-                paint.color = Color.CYAN
-                path.moveTo(centerX - arrowSize * 2 + offset, centerY)
-                path.lineTo(centerX - arrowSize + offset, centerY - arrowSize)
-                path.lineTo(centerX - arrowSize + offset, centerY + arrowSize)
-                path.close()
-            }
-            "RIGHT" -> {
-                paint.color = Color.CYAN
-                path.moveTo(centerX + arrowSize * 2 - offset, centerY)
-                path.lineTo(centerX + arrowSize - offset, centerY - arrowSize)
-                path.lineTo(centerX + arrowSize - offset, centerY + arrowSize)
-                path.close()
-            }
-            "DOWN" -> {
-                paint.color = Color.MAGENTA
-                path.moveTo(centerX, centerY + arrowSize * 2 - offset)
-                path.lineTo(centerX - arrowSize, centerY + arrowSize - offset)
-                path.lineTo(centerX + arrowSize, centerY + arrowSize - offset)
-                path.close()
-            }
-        }
-
-        if (direction != "CENTER") {
-            canvas.drawPath(path, paint)
-        }
-    }
+//    private fun drawArrow(canvas: Canvas, direction: String, paint: Paint) {
+//        val path = Path()
+//        val arrowSize = width * 0.1f
+//        val centerX = width / 2f
+//        val centerY = height / 2f
+//
+//        // 화살표 움직임을 위한 오프셋 계산
+//        val offset = (arrowSize * 0.2f) * Math.sin(arrowPhase * 2 * Math.PI).toFloat()
+//
+//        when (direction) {
+//            "CENTER" -> {
+//                paint.color = Color.YELLOW
+//                val radius = arrowSize * 0.5f
+//                val pulseRadius = radius + (arrowSize * 0.1f) * Math.sin(arrowPhase * 2 * Math.PI).toFloat()
+//                canvas.drawCircle(centerX, centerY, pulseRadius, paint)
+//            }
+//            "LEFT" -> {
+//                paint.color = Color.CYAN
+//                path.moveTo(centerX - arrowSize * 2 + offset, centerY)
+//                path.lineTo(centerX - arrowSize + offset, centerY - arrowSize)
+//                path.lineTo(centerX - arrowSize + offset, centerY + arrowSize)
+//                path.close()
+//            }
+//            "RIGHT" -> {
+//                paint.color = Color.CYAN
+//                path.moveTo(centerX + arrowSize * 2 - offset, centerY)
+//                path.lineTo(centerX + arrowSize - offset, centerY - arrowSize)
+//                path.lineTo(centerX + arrowSize - offset, centerY + arrowSize)
+//                path.close()
+//            }
+//            "DOWN" -> {
+//                paint.color = Color.MAGENTA
+//                path.moveTo(centerX, centerY + arrowSize * 2 - offset)
+//                path.lineTo(centerX - arrowSize, centerY + arrowSize - offset)
+//                path.lineTo(centerX + arrowSize, centerY + arrowSize - offset)
+//                path.close()
+//            }
+//        }
+//
+//        if (direction != "CENTER") {
+//            canvas.drawPath(path, paint)
+//        }
+//    }
 
     private fun drawSuggestions(canvas: Canvas, suggestions: List<String>) {
         suggestions.forEachIndexed { index, suggestion ->
