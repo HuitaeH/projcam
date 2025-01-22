@@ -264,7 +264,8 @@ class MainActivity : ComponentActivity() {
                 landmarks,
                 referencePose,
                 imageWidth,
-                imageHeight
+                imageHeight,
+                poseSuggestionView.getShouldLog()
             )
 
             // UI 업데이트
