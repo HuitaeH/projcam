@@ -1,8 +1,9 @@
-package com.example.cameraapp.utils
+package com.example.cameraapp.util
 
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+
 
 // Function to draw an arrow from start (COM) to end (average COM)
 fun drawArrow(canvas: Canvas, startX: Float, startY: Float, endX: Float, endY: Float) {
@@ -32,3 +33,5 @@ fun drawArrow(canvas: Canvas, startX: Float, startY: Float, endX: Float, endY: F
     canvas.drawLine(endX, endY, x1, y1, paint)
     canvas.drawLine(endX, endY, x2, y2, paint)
 }
+
+

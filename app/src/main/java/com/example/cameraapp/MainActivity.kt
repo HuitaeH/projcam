@@ -1,6 +1,6 @@
 package com.example.cameraapp
 
-// Import necessary libraries for various functionalities.
+import com.google.gson.Gson
 import android.Manifest
 import android.content.ContentValues
 import android.content.pm.PackageManager
@@ -45,6 +45,9 @@ import java.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import com.example.cameraapp.analyzer.PoseComparator
+import com.example.cameraapp.model.Referencepose
+import com.example.cameraapp.ui.theme.overlay.PoseSuggestionView
 
 // MainActivity class
 class MainActivity : ComponentActivity() {
@@ -53,6 +56,9 @@ class MainActivity : ComponentActivity() {
     // Declare analyzers for body pose and face detection
     private lateinit var bodyAnalyzer: BodyAnalyzer
     private lateinit var multiFaceAnalyzer: MultiFaceAnalyzer
+    private lateinit var poseComparator: PoseComparator
+    private lateinit var referencePose: Referencepose
+    private lateinit var poseSuggestionView: PoseSuggestionView
 
     // Request permissions at runtime
     private val requestPermissionLauncher = registerForActivityResult(
@@ -68,6 +74,14 @@ class MainActivity : ComponentActivity() {
     // onCreate method
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // JSON 파일 로드
+        val jsonString = assets.open("reference_pose.json").bufferedReader().use { it.readText() }
+        referencePose = Gson().fromJson(jsonString, Referencepose::class.java)
+
+        poseComparator = PoseComparator()
+        poseSuggestionView = PoseSuggestionView(this)
+
 
         // Initialize analyzers for pose and face detection
         bodyAnalyzer = BodyAnalyzer(this) { result: PoseLandmarkerResult, mpImage: MPImage ->
@@ -208,6 +222,11 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier.fillMaxSize()
             )
 
+            AndroidView(
+                factory = { poseSuggestionView },
+                modifier = Modifier.fillMaxSize()
+            )
+
             // Continuously update the overlay for rendering
             LaunchedEffect(Unit) {
                 while(true) {
@@ -259,27 +278,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handlePoseResult(result: PoseLandmarkerResult, mpImage: MPImage) {
-        // Log the body landmarks' coordinates for pose
-        val bodyLandmarks = result.landmarks()  // Make sure this returns the correct landmark list
-        bodyLandmarks?.forEachIndexed { index, landmark ->
-            val x = landmark.x()  // Use getX() instead of x()
-            val y = landmark.y()  // Use getY() instead of y()
-            Log.d(TAG, "Body Landmark $index: x=$x, y=$y")
-        }
+        result.landmarks().firstOrNull()?.let { landmarks ->
+            // 포즈 비교 실행
+            val comparisonResult = poseComparator.comparePose(landmarks, referencePose)
 
-        // Log the face landmarks' coordinates
-        val faces = multiFaceAnalyzer.getDetectedFaces()  // Make sure this method exists and is correct
-        faces?.forEachIndexed { index, face ->
-            face?.landmarks?.forEachIndexed { landmarkIndex, landmark ->
-                val x = landmark.getX()  // Assuming you can get the face landmark coordinates this way
-                val y = landmark.getY()
-                Log.d(TAG, "Face $index Landmark $landmarkIndex: x=$x, y=$y")
+            // UI 업데이트
+            runOnUiThread {
+                poseSuggestionView.updateResult(comparisonResult)
             }
         }
     }
 
-
-    // Take a photo and save it
     private fun takePhoto() {
         val imageCapture = imageCapture ?: return
 
