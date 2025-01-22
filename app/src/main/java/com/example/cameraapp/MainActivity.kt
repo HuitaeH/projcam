@@ -255,8 +255,17 @@ class MainActivity : ComponentActivity() {
 
     private fun handlePoseResult(result: PoseLandmarkerResult, mpImage: MPImage) {
         result.landmarks().firstOrNull()?.let { landmarks ->
+
+            val imageWidth = mpImage.width
+            val imageHeight = mpImage.height
+
             // 포즈 비교 실행
-            val comparisonResult = poseComparator.comparePose(landmarks, referencePose)
+            val comparisonResult = poseComparator.comparePose(
+                landmarks,
+                referencePose,
+                imageWidth,
+                imageHeight
+            )
 
             // UI 업데이트
             runOnUiThread {
