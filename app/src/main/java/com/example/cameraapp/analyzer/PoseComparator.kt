@@ -57,14 +57,7 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         val detailedScores: Map<String, Float>  // 각 부위별 유사도 점수
     )
 
-    private fun shouldLogNow(): Boolean {
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastLogTime >= LOG_INTERVAL) {
-            lastLogTime = currentTime
-            return true
-        }
-        return false
-    }
+
 
 
     fun comparePose(
@@ -72,7 +65,7 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         referencePose: ReferencePoints,
         imageWidth: Int,
         imageHeight: Int,
-        shouldLog: Boolean
+        //shouldLog: Boolean
     ): ComparisonResult {
         val differences = mutableMapOf<String, Float>()
         val suggestions = mutableListOf<String>()
@@ -109,7 +102,7 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
             currentLandmarks,
             imageWidth,
             imageHeight,
-            shouldLog  // shouldLog 전달
+            //shouldLog  // shouldLog 전달
         )
 
         // 3. 제안사항 생성
@@ -195,7 +188,7 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         currentLandmarks: List<NormalizedLandmark>,
         imageWidth: Int,
         imageHeight: Int,
-        shouldLog: Boolean
+        //shouldLog: Boolean
     ): Float {
         // 현재 랜드마크의 위치를 픽셀 좌표로 변환
         val nose = currentLandmarks[0]
@@ -249,44 +242,7 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         // 최종 점수 계산
         val finalScore = (noseScore + shoulderScore + hipScore) / 3
 
-        // 5초마다 로그 출력
-        if (shouldLog) {
-            Log.d("ThirdsGuide", """
-                COM:
-                - X: $comX
-                - Y: $comY
-                
-                코 (X):
-                - 현재: $currentNoseXProximity
-                - 참조: ${noseDataX}
-                - 차이: $noseXDiff
-                
-                코 (Y):
-                - 현재: $currentNoseYProximity
-                - 참조: ${noseDataY}
-                - 차이: $noseYDiff
-                
-                어깨 (X):
-                - 현재: $currentShoulderXProximity
-                - 참조: ${shoulderDataX}
-                - 차이: $shoulderXDiff
-                
-                어깨 (Y):
-                - 현재: $currentShoulderYProximity
-                - 참조: ${shoulderDataY}
-                - 차이: $shoulderYDiff
-                
-                엉덩이 (X):
-                - 현재: $currentHipXProximity
-                - 참조: ${hipDataX}
-                - 차이: $hipXDiff
-                
-                엉덩이 (Y):
-                - 현재: $currentHipYProximity
-                - 참조: ${hipDataY}
-                - 차이: $hipYDiff
-            """.trimIndent())
-        }
+
 
         return finalScore
     }
