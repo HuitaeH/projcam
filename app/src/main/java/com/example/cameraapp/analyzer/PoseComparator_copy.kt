@@ -8,43 +8,14 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 // app/kotlin+java/com.example.cameraapp/analyzer/PoseComparator.kt
-class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoints) {
+class PoseComparator_copy {
     companion object {
         private const val TAG = "PoseComparator"
         private const val POSITION_THRESHOLD = 0.1f
         private const val CRITICAL_THRESHOLD = 0.15f
+        private const val THIRDS_THRESHOLD = 100f
         private const val LOG_INTERVAL = 5000L  // 5초
     }
-
-//    // Access values from average_com and average_pose
-//    val comX = referenceCom.average_com?.x ?: 0f // Safe access with a default value of 0f if null
-//    val comY = referenceCom.average_com?.y ?: 0f // Same for y value
-
-    val comX = referenceCom.average_com?.x ?: 0f // Safe access with a default value of 0f if null
-    val comY = referenceCom.average_com?.y ?: 0f // Same for y value
-
-    // Using safe calls for average_pose values and providing default values
-    val noseDataX = referencePose.average_pose["NOSE"]?.x?.plus(comX) ?: comX
-    val noseDataY = referencePose.average_pose["NOSE"]?.y?.plus(comY) ?: comY
-    val lshoulderDataX = referencePose.average_pose["LEFT_SHOULDER"]?.x?.plus(comX) ?: comX
-    val rshoulderDataX = referencePose.average_pose["RIGHT_SHOULDER"]?.x?.plus(comX) ?: comX
-    val lshoulderDataY = referencePose.average_pose["LEFT_SHOULDER"]?.y?.plus(comY) ?: comY
-    val rshoulderDataY = referencePose.average_pose["RIGHT_SHOULDER"]?.y?.plus(comY) ?: comY
-
-    // Corrected averaging for shoulder
-    val shoulderDataX = (lshoulderDataX + rshoulderDataX) / 2
-    val shoulderDataY = (lshoulderDataY + rshoulderDataY) / 2
-
-    // Corrected calculation for hip data (using X with X, and Y with Y)
-    val lhipDataX = referencePose.average_pose["LEFT_HIP"]?.x?.plus(comX) ?: comX
-    val rhipDataX = referencePose.average_pose["RIGHT_HIP"]?.x?.plus(comX) ?: comX
-    val lhipDataY = referencePose.average_pose["LEFT_HIP"]?.y?.plus(comY) ?: comY
-    val rhipDataY = referencePose.average_pose["RIGHT_HIP"]?.y?.plus(comY) ?: comY
-
-    // Corrected averaging for hip
-    val hipDataX = (lhipDataX + rhipDataX) / 2
-    val hipDataY = (lhipDataY + rhipDataY) / 2
-
 
 
     // 마지막 로그 출력 시간을 저장
@@ -71,7 +42,7 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
 
     fun comparePose(
         currentLandmarks: List<NormalizedLandmark>,
-        referencePose: ReferencePoints,
+        referencePose: Referencepose,
         imageWidth: Int,
         imageHeight: Int,
         shouldLog: Boolean
@@ -82,33 +53,34 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         // 1. 기본 자세 비교
         differences["NOSE"] = comparePosition(
             currentLandmarks[0],
-            referencePose.average_pose["NOSE"]!!
+            referencePose.average_posture["NOSE"]!!
         )
 
         // 어깨
         val leftShoulderDiff = comparePosition(
             currentLandmarks[11],
-            referencePose.average_pose["LEFT_SHOULDER"]!!
+            referencePose.average_posture["LEFT_SHOULDER"]!!
         )
         val rightShoulderDiff = comparePosition(
             currentLandmarks[12],
-            referencePose.average_pose["RIGHT_SHOULDER"]!!
+            referencePose.average_posture["RIGHT_SHOULDER"]!!
         )
         differences["SHOULDERS"] = (leftShoulderDiff + rightShoulderDiff) / 2
 
         val leftHipDiff = comparePosition(
             currentLandmarks[23],
-            referencePose.average_pose["LEFT_HIP"]!!
+            referencePose.average_posture["LEFT_HIP"]!!
         )
         val rightHipDiff = comparePosition(
             currentLandmarks[24],
-            referencePose.average_pose["RIGHT_HIP"]!!
+            referencePose.average_posture["RIGHT_HIP"]!!
         )
         differences["HIPS"] = (leftHipDiff + rightHipDiff) / 2
 
         // 2. 삼분할 구도 비교
-        val thirdsScore = compareDataProximity(
+        val thirdsScore = compareThirdsProximity(
             currentLandmarks,
+            referencePose.average_proximity_to_thirds,
             imageWidth,
             imageHeight,
             shouldLog  // shouldLog 전달
@@ -141,20 +113,33 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         )
     }
 
-    private fun calculateNormalizedProximity(coordinate: Float, comCoordinate: Float, dimension: Int): Float {
+    private fun calculateNormalizedProximity(coordinate: Float, thirdLine: Float, dimension: Int): Float {
         // 거리를 계산하고 이미지 크기로 나누어 정규화
-        return abs(coordinate - comCoordinate) / dimension
+        return abs(coordinate - thirdLine) / dimension
     }
 
+    private fun calculateThirdsScore(diff: Float): Float {
+        // 지수적으로 감소하는 기본 점수
+        val baseScore = (1 - Math.pow(diff.toDouble(), 2.0)).toFloat() * 100
+
+        // 구간별 가중치 적용
+        val weight = when {
+            diff < 0.1f -> 1.2f  // 매우 가까우면 추가 보너스
+            diff < 0.2f -> 1.0f  // 기준점
+            diff < 0.3f -> 0.8f  // 약간 감점
+            else -> 0.6f         // 크게 감점
+        }
+
+        return (baseScore * weight).coerceIn(0f, 100f)
+    }
 
     private fun calculateXScore(diff: Float): Float {
         // 0.05를 기준으로 점수 계산
-        val absDiff = abs(diff)
         return when {
-            absDiff < 0.05f -> 100f  // 매우 정확
-            absDiff < 0.1f -> 80f   // 좋음
-            absDiff < 0.15f -> 60f  // 보통
-            absDiff < 0.2f -> 40f   // 부족
+            diff < 0.05f -> 100f  // 매우 정확
+            diff < 0.1f -> 80f   // 좋음
+            diff < 0.15f -> 60f  // 보통
+            diff < 0.2f -> 40f   // 부족
             else -> 20f          // 매우 부족
         }
     }
@@ -193,8 +178,9 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         }.coerceIn(0f, 100f)  // 최종 점수는 0~100 사이로 제한
     }
 
-    private fun compareDataProximity(
+    private fun compareThirdsProximity(
         currentLandmarks: List<NormalizedLandmark>,
+        referenceThirds: ThirdsProximity,
         imageWidth: Int,
         imageHeight: Int,
         shouldLog: Boolean
@@ -216,24 +202,27 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         val currentHipX = ((1 - leftHip.y()) + (1 - rightHip.y())) / 2 * imageWidth
         val currentHipY = (leftHip.x() + rightHip.x()) / 2 * imageHeight
 
+        // 첫 번째 삼분할선 위치 계산
+        val firstVerticalThird = imageWidth / 3f
+        val firstHorizontalThird = imageHeight / 3f
 
         // 정규화된 거리 계산 (0-1 사이의 값)
-        val currentNoseXProximity = calculateNormalizedProximity(currentNoseX, comX, imageWidth)
-        val currentNoseYProximity = calculateNormalizedProximity(currentNoseY, comY, imageHeight)
+        val currentNoseXProximity = calculateNormalizedProximity(currentNoseX, firstVerticalThird, imageWidth)
+        val currentNoseYProximity = calculateNormalizedProximity(currentNoseY, firstHorizontalThird, imageHeight)
 
-        val currentShoulderXProximity = calculateNormalizedProximity(currentShoulderX, comX, imageWidth)
-        val currentShoulderYProximity = calculateNormalizedProximity(currentShoulderY, comY, imageHeight)
+        val currentShoulderXProximity = calculateNormalizedProximity(currentShoulderX, firstVerticalThird, imageWidth)
+        val currentShoulderYProximity = calculateNormalizedProximity(currentShoulderY, firstHorizontalThird, imageHeight)
 
-        val currentHipXProximity = calculateNormalizedProximity(currentHipX, comX, imageWidth)
-        val currentHipYProximity = calculateNormalizedProximity(currentHipY, comY, imageHeight)
+        val currentHipXProximity = calculateNormalizedProximity(currentHipX, firstVerticalThird, imageWidth)
+        val currentHipYProximity = calculateNormalizedProximity(currentHipY, firstHorizontalThird, imageHeight)
 
-        // 정규화된 거리값 차이 계산 - diff with the predetermined data
-        val noseXDiff = abs(currentNoseXProximity - noseDataX)
-        val noseYDiff = abs(currentNoseYProximity - noseDataY)
-        val shoulderXDiff = abs(currentShoulderXProximity - shoulderDataX)
-        val shoulderYDiff = abs(currentShoulderYProximity - shoulderDataY)
-        val hipXDiff = abs(currentHipXProximity - hipDataX)
-        val hipYDiff = abs(currentHipYProximity - hipDataY)
+        // 정규화된 거리값 차이 계산
+        val noseXDiff = abs(currentNoseXProximity - referenceThirds.average_nose_x_proximity)
+        val noseYDiff = abs(currentNoseYProximity - referenceThirds.average_nose_y_proximity)
+        val shoulderXDiff = abs(currentShoulderXProximity - referenceThirds.average_shoulder_x_proximity)
+        val shoulderYDiff = abs(currentShoulderYProximity - referenceThirds.average_shoulder_y_proximity)
+        val hipXDiff = abs(currentHipXProximity - referenceThirds.average_hip_x_proximity)
+        val hipYDiff = abs(currentHipYProximity - referenceThirds.average_hip_y_proximity)
 
         // X, Y 각각의 점수 계산
         val noseXScore = calculateXScore(noseXDiff)
@@ -256,32 +245,32 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
             Log.d("ThirdsGuide", """
                 코 (X):
                 - 현재: $currentNoseXProximity
-                - 참조: ${noseDataX}
+                - 참조: ${referenceThirds.average_nose_x_proximity}
                 - 차이: $noseXDiff
                 
                 코 (Y):
                 - 현재: $currentNoseYProximity
-                - 참조: ${noseDataY}
+                - 참조: ${referenceThirds.average_nose_y_proximity}
                 - 차이: $noseYDiff
                 
                 어깨 (X):
                 - 현재: $currentShoulderXProximity
-                - 참조: ${shoulderDataX}
+                - 참조: ${referenceThirds.average_shoulder_x_proximity}
                 - 차이: $shoulderXDiff
                 
                 어깨 (Y):
                 - 현재: $currentShoulderYProximity
-                - 참조: ${shoulderDataY}
+                - 참조: ${referenceThirds.average_shoulder_y_proximity}
                 - 차이: $shoulderYDiff
                 
                 엉덩이 (X):
                 - 현재: $currentHipXProximity
-                - 참조: ${hipDataX}
+                - 참조: ${referenceThirds.average_hip_x_proximity}
                 - 차이: $hipXDiff
                 
                 엉덩이 (Y):
                 - 현재: $currentHipYProximity
-                - 참조: ${hipDataY}
+                - 참조: ${referenceThirds.average_hip_y_proximity}
                 - 차이: $hipYDiff
             """.trimIndent())
         }

@@ -46,65 +46,63 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import com.example.cameraapp.analyzer.PoseComparator
-import com.example.cameraapp.model.Referencepose
+import com.example.cameraapp.model.ReferencePoints
 import com.example.cameraapp.ui.theme.overlay.PoseSuggestionView
 
-
-// MainActivity class
 class MainActivity : ComponentActivity() {
-    // Declare imageCapture instance for capturing photos
     private var imageCapture: ImageCapture? = null
-    // Declare analyzers for body pose and face detection
     private lateinit var bodyAnalyzer: BodyAnalyzer
     private lateinit var multiFaceAnalyzer: MultiFaceAnalyzer
     private lateinit var poseComparator: PoseComparator
-    private lateinit var referencePose: Referencepose
+    private lateinit var referenceCom: ReferencePoints
+    private lateinit var referencePose: ReferencePoints
     private lateinit var poseSuggestionView: PoseSuggestionView
 
-    // Request permissions at runtime
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions.all { it.value }) {
-            // Permission granted
+            // 권한이 승인됨
         } else {
             Toast.makeText(this, "권한이 필요합니다.", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // onCreate method
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // JSON 파일 로드
-        val jsonString = assets.open("reference_pose.json").bufferedReader().use { it.readText() }
-        referencePose = Gson().fromJson(jsonString, Referencepose::class.java)
+        try {
+            val jsonCOM = assets.open("half_average_com.json").bufferedReader().use { it.readText() }
+            val jsonPose = assets.open("half_average_posture.json").bufferedReader().use { it.readText() }
+            referenceCom = Gson().fromJson(jsonCOM, ReferencePoints::class.java)
+            referencePose = Gson().fromJson(jsonPose, ReferencePoints::class.java)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading JSON files", e)
+        }
 
-        poseComparator = PoseComparator()
+
+
+        poseComparator = PoseComparator(referencePose, referenceCom)
         poseSuggestionView = PoseSuggestionView(this)
 
 
-        // Initialize analyzers for pose and face detection
         bodyAnalyzer = BodyAnalyzer(this) { result: PoseLandmarkerResult, mpImage: MPImage ->
             handlePoseResult(result, mpImage)
         }
         multiFaceAnalyzer = MultiFaceAnalyzer(this)
 
-        // Check permissions and request if not granted
         if (!allPermissionsGranted()) {
             requestPermissions()
         }
 
-        // Set up the UI
         setContent {
             CameraAppTheme {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // Display the camera preview
                     CameraPreview(
                         imageCapture = { capture -> imageCapture = capture },
                         processImage = { imageProxy -> processImage(imageProxy) }
                     )
-                    // Button for capturing a photo
                     Button(
                         onClick = { takePhoto() },
                         modifier = Modifier
@@ -118,17 +116,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // Check if all necessary permissions are granted
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
     }
 
-    // Request necessary permissions
     private fun requestPermissions() {
         requestPermissionLauncher.launch(REQUIRED_PERMISSIONS)
     }
 
-    // CameraPreview composable function
     @Composable
     private fun CameraPreview(
         imageCapture: (ImageCapture) -> Unit,
@@ -137,7 +132,6 @@ class MainActivity : ComponentActivity() {
         val lifecycleOwner = LocalLifecycleOwner.current
         val context = LocalContext.current
 
-        // Camera preview setup
         Box(modifier = Modifier.fillMaxSize()) {
             val previewView = remember {
                 PreviewView(context).apply {
@@ -146,22 +140,21 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // Launch camera preview setup
             LaunchedEffect(previewView) {
                 val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
                 cameraProviderFuture.addListener({
                     val cameraProvider = cameraProviderFuture.get()
 
-                    // Setup preview and camera selector
                     val preview = Preview.Builder()
                         .build()
                         .also {
                             it.setSurfaceProvider(previewView.surfaceProvider)
                         }
 
+
+
                     val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
-                    // Setup image capture use case
                     val imageCaptureUseCase = ImageCapture.Builder()
                         .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                         .build()
@@ -179,7 +172,6 @@ class MainActivity : ComponentActivity() {
                         }
 
                     try {
-                        // Bind camera to lifecycle
                         cameraProvider.unbindAll()
                         cameraProvider.bindToLifecycle(
                             lifecycleOwner,
@@ -194,13 +186,11 @@ class MainActivity : ComponentActivity() {
                 }, ContextCompat.getMainExecutor(context))
             }
 
-            // Display the previewView
             AndroidView(
                 factory = { previewView },
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Overlay for face and body pose drawing
             val overlayView = remember {
                 object : android.view.View(context) {
                     override fun onDraw(canvas: android.graphics.Canvas) {
@@ -215,7 +205,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // Display the overlay view
             AndroidView(
                 factory = { overlayView },
                 modifier = Modifier.fillMaxSize()
@@ -226,34 +215,31 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Continuously update the overlay for rendering
             LaunchedEffect(Unit) {
                 while(true) {
                     withContext(Dispatchers.Main) {
                         overlayView.invalidate()
                     }
-                    delay(16) // approx 60 FPS
+                    delay(16)
                 }
             }
         }
     }
 
-    // Process the image from the camera
     private fun processImage(imageProxy: ImageProxy) {
         val mediaImage = imageProxy.image ?: return
         try {
-            val bitmap = imageProxy.toBitmap() // Convert to bitmap
-            val mpImage = BitmapImageBuilder(bitmap).build() // Convert bitmap to MediaPipe image
-            bodyAnalyzer.detectPose(mpImage) // Detect body pose
-            multiFaceAnalyzer.detectFaces(mpImage) // Detect faces
+            val bitmap = imageProxy.toBitmap()
+            val mpImage = BitmapImageBuilder(bitmap).build()
+            bodyAnalyzer.detectPose(mpImage)
+            multiFaceAnalyzer.detectFaces(mpImage)
         } catch (e: Exception) {
             Log.e(TAG, "Image processing failed", e)
         } finally {
-            imageProxy.close() // Close the image proxy after processing
+            imageProxy.close()
         }
     }
 
-    // Extension function to convert ImageProxy to Bitmap
     private fun ImageProxy.toBitmap(): Bitmap {
         val yBuffer = planes[0].buffer
         val uBuffer = planes[1].buffer
@@ -276,9 +262,8 @@ class MainActivity : ComponentActivity() {
         return BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
     }
 
-    private val smoothingFactor = 0.8f  // Adjust between 0 (more smoothing) and 1 (less smoothing)
-    private var previousLandmarks: List<PoseLandmark>? = null
-
+    private fun handlePoseResult(result: PoseLandmarkerResult, mpImage: MPImage) {
+        result.landmarks().firstOrNull()?.let { landmarks ->
 
             val imageWidth = mpImage.width
             val imageHeight = mpImage.height
@@ -302,7 +287,6 @@ class MainActivity : ComponentActivity() {
     private fun takePhoto() {
         val imageCapture = imageCapture ?: return
 
-        // Set the photo file name with current time
         val name = SimpleDateFormat(FILENAME_FORMAT, Locale.US)
             .format(System.currentTimeMillis())
         val contentValues = ContentValues().apply {
@@ -313,12 +297,10 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Set output options for saving the image
         val outputOptions = ImageCapture.OutputFileOptions
             .Builder(contentResolver, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
             .build()
 
-        // Capture the photo and save it
         imageCapture.takePicture(
             outputOptions,
             ContextCompat.getMainExecutor(this),
@@ -337,7 +319,6 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    // Clean up resources onDestroy
     override fun onDestroy() {
         super.onDestroy()
         bodyAnalyzer.close()
