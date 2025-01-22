@@ -68,6 +68,7 @@ import androidx.camera.core.Camera
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import androidx.core.os.HandlerCompat.postDelayed
+import android.content.Intent
 
 class MainActivity : ComponentActivity() {
     private var imageCapture: ImageCapture? = null
@@ -91,6 +92,13 @@ class MainActivity : ComponentActivity() {
         } else {
             Toast.makeText(this, "권한이 필요합니다.", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun openGallery() {
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            type = "image/*"
+        }
+        startActivity(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -136,6 +144,9 @@ class MainActivity : ComponentActivity() {
         }
         setupOverlayView()
 
+
+        val galleryButton: ImageButton = findViewById(R.id.gallery_button)
+        galleryButton.setOnClickListener { openGallery() }
 
     }
 

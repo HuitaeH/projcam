@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RectF
 import android.view.MotionEvent
 import android.view.View
 import com.example.cameraapp.analyzer.PoseComparator
@@ -39,21 +40,21 @@ class PoseSuggestionView(context: Context) : View(context) {
         textAlign = Paint.Align.CENTER
     }
 
-    private val arrowPaint = Paint().apply {
-        style = Paint.Style.FILL_AND_STROKE
-        strokeWidth = 8f
-        strokeJoin = Paint.Join.ROUND
-        strokeCap = Paint.Cap.ROUND
-    }
 
-    private val suggestionPaint = Paint().apply {
-        color = Color.WHITE
-        textSize = 40f
-        isFakeBoldText = true
-        setShadowLayer(3f, 0f, 0f, Color.BLACK)
-    }
+
+
 
     private val backgroundPaint = Paint().apply {
+        color = Color.parseColor("#66000000")
+        style = Paint.Style.FILL
+    }
+
+    private val gaugePaint = Paint().apply {
+        color = Color.WHITE
+        style = Paint.Style.FILL
+    }
+
+    private val gaugeBackgroundPaint = Paint().apply {
         color = Color.parseColor("#66000000")
         style = Paint.Style.FILL
     }
@@ -63,18 +64,9 @@ class PoseSuggestionView(context: Context) : View(context) {
         invalidate()
     }
 
-    private val logButtonPaint = Paint().apply {
-        color = Color.WHITE
-        style = Paint.Style.FILL
-        alpha = 180
-    }
 
-    private val logButtonTextPaint = Paint().apply {
-        color = Color.BLACK
-        textSize = 40f
-        textAlign = Paint.Align.CENTER
-        isFakeBoldText = true
-    }
+
+
 
 
 
@@ -86,13 +78,49 @@ class PoseSuggestionView(context: Context) : View(context) {
         drawThirdsGrid(canvas)
 
         comparisonResult?.let { result ->
+            // 게이지 바 그리기
+            val gaugeHeight = 20f
+            val gaugeY = height * 0.02f
+
+
+            val cornerRadius = 10f  // 둥근 모서리
+            val padding = width * 0.05f  // 좌우 패딩
+
+
+            // 게이지 배경 (둥근 모서리)
+            val backgroundRect = RectF(padding, gaugeY, width - padding, gaugeY + gaugeHeight)
+            //val backgroundRect = RectF(gaugeX, padding, gaugeX + gaugeWidth, height - padding)
+            canvas.drawRoundRect(backgroundRect, cornerRadius, cornerRadius, gaugeBackgroundPaint)
+
+            // 점수에 따른 게이지 너비와 색상
+            val fillWidth = minOf(
+               width - padding,  // 최대 너비 제한
+                (((width - (padding * 2)) * (result.centerScore / 100f)) + padding)
+            )
+
+
+            gaugePaint.color = when {
+                result.centerScore >= 90 -> Color.GREEN
+                result.centerScore >= 70 -> Color.YELLOW
+                else -> Color.RED
+            }
+
+
+
+
+            // 게이지 채우기 (둥근 모서리)
+            val fillRect = RectF(padding, gaugeY, fillWidth, gaugeY + gaugeHeight)
+            //val fillRect = RectF(gaugeX, height - fillHeight, gaugeX + gaugeWidth, height - padding)
+            canvas.drawRoundRect(fillRect, cornerRadius, cornerRadius, gaugePaint)
+
+//
+
             // 반투명 배경
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), backgroundPaint)
 
             // 점수 표시
             val scoreX = width / 2f
             val scoreBaseY = height * 0.15f
-
 
             // 구도 점수
             scorePaint.color = when {
@@ -106,7 +134,6 @@ class PoseSuggestionView(context: Context) : View(context) {
                 scoreBaseY + 200f,
                 scorePaint
             )
-
         }
     }
 
