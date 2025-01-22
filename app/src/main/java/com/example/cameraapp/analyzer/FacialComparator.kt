@@ -31,7 +31,6 @@ class FacialComparator(
     // Data class for comparison results
     data class ComparisonResult(
         val overallScore: Float,
-        val faceScore: Float,
         val suggestions: List<String>,
         val detailedScores: Map<String, Float>
     )
@@ -100,17 +99,15 @@ class FacialComparator(
         differences["FOREHEAD"] = foreheadDiff
 
         // Calculate the face score
-        val faceScore = calculateFaceScore(differences)
+        val overallScore = calculateFaceScore(differences)
 
         // Generate suggestions based on differences
         generateSuggestions(differences, suggestions)
 
         // Calculate overall score
-        val overallScore = faceScore * 0.8f // You can adjust the weighting as necessary
 
         return ComparisonResult(
             overallScore = overallScore,
-            faceScore = faceScore,
             suggestions = suggestions,
             detailedScores = differences
         )
