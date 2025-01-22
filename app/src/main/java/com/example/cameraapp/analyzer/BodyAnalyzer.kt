@@ -57,9 +57,12 @@ class BodyAnalyzer(
     fun drawPose(canvas: Canvas, landmarks: List<NormalizedLandmark>) {
         // 랜드마크 점 그리기
         for (landmark in landmarks) {
+
+            val padding = 0.1f  // 10% 여유 공간
+
             canvas.drawCircle(
-                (1 - landmark.y()) * canvas.width,  // y 좌표를 x로 변환
-                landmark.x() * canvas.height,       // x 좌표를 y로 변환
+                (1 - landmark.y()).coerceIn(padding, 1 - padding) * canvas.width,  // y 좌표를 x로 변환
+                landmark.x().coerceIn(padding, 1 - padding) * canvas.height,       // x 좌표를 y로 변환
                 8f,
                 paint
             )

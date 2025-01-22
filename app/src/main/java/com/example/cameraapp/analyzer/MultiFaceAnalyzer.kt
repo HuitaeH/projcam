@@ -18,7 +18,7 @@ class MultiFaceAnalyzer(context: Context) {
     private var selectedFaceIndex: Int? = null
     private val faceBoxes = mutableListOf<RectF>()
     private var lastProcessingTimeMs = 0L
-    private val MIN_TIME_BETWEEN_FRAMES_MS = 30L
+    private val MIN_TIME_BETWEEN_FRAMES_MS = 16L
 
 
     private val landmarkPaint = Paint().apply {
@@ -42,9 +42,9 @@ class MultiFaceAnalyzer(context: Context) {
             .setBaseOptions(baseOptions)
             .setRunningMode(RunningMode.LIVE_STREAM)
             .setNumFaces(3)
-            .setMinFaceDetectionConfidence(0.3f)    // 얼굴 감지 신뢰도 임계값 낮춤
-            .setMinFacePresenceConfidence(0.3f)     // 얼굴 존재 신뢰도 임계값 낮춤
-            .setMinTrackingConfidence(0.3f)         // 추적 신뢰도 임계값 낮춤
+            .setMinFaceDetectionConfidence(0.5f)    // 얼굴 감지 신뢰도 임계값 낮춤
+            .setMinFacePresenceConfidence(0.5f)     // 얼굴 존재 신뢰도 임계값 낮춤
+            .setMinTrackingConfidence(0.5f)         // 추적 신뢰도 임계값 낮춤
             .setOutputFaceBlendshapes(true)
             .setOutputFacialTransformationMatrixes(true)
             .setResultListener { result: FaceLandmarkerResult, image: MPImage ->
@@ -89,7 +89,20 @@ class MultiFaceAnalyzer(context: Context) {
                 maxY = maxOf(maxY, landmark.x())      // x 좌표를 y로 변환
             }
 
-            faceBoxes.add(RectF(minX, minY, maxX, maxY))
+            // 경계 상자 여유 공간을 더 크게
+            val paddingX = 0.1f  // 좌우 여유 공간 증가
+            val paddingY = 0.1f  // 상하 여유 공간 증가
+
+
+
+            faceBoxes.add(RectF(
+                (minX - paddingX).coerceIn(0f, 1f),
+                (minY - paddingY).coerceIn(0f, 1f),
+                (maxX + paddingX).coerceIn(0f, 1f),
+                (maxY + paddingY).coerceIn(0f, 1f)
+            ))
+
+
             Log.d(TAG, "Face $index bounds: left=$minX, top=$minY, right=$maxX, bottom=$maxY")
         }
     }
