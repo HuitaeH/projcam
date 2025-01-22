@@ -11,67 +11,74 @@ import android.graphics.Rect
 import android.graphics.YuvImage
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.MediaStore
 import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
+//import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
+//import androidx.compose.foundation.background
+//import androidx.compose.foundation.layout.*
+//import androidx.compose.material3.Button
+//import androidx.compose.material3.Text
+//import androidx.compose.runtime.Composable
+//import androidx.compose.runtime.LaunchedEffect
+//import androidx.compose.runtime.remember
+//import androidx.compose.ui.Alignment
+//import androidx.compose.ui.Modifier
+//import androidx.compose.ui.platform.LocalContext
+//import androidx.compose.ui.platform.LocalLifecycleOwner
+//import androidx.compose.ui.unit.dp
+//import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.example.cameraapp.analyzer.BodyAnalyzer
 import com.example.cameraapp.analyzer.MultiFaceAnalyzer
-import com.example.cameraapp.ui.theme.CameraAppTheme
+//import com.example.cameraapp.ui.theme.CameraAppTheme
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
+//import kotlinx.coroutines.Dispatchers
+//import kotlinx.coroutines.delay
+//import kotlinx.coroutines.withContext
 import com.example.cameraapp.analyzer.PoseComparator
-import com.example.cameraapp.model.Referencepose
+import com.example.cameraapp.model.ReferencePoints
 import com.example.cameraapp.ui.theme.overlay.PoseSuggestionView
-import androidx.compose.material3.ButtonDefaults  // 이 import 추가
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Loop
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.unit.sp
-import androidx.compose.material3.Icon
+//import androidx.compose.material3.ButtonDefaults  // 이 import 추가
+//import androidx.compose.material.icons.Icons
+//import androidx.compose.material.icons.filled.Loop
+//import androidx.compose.ui.graphics.Color
+//import androidx.compose.ui.text.TextStyle
+//import androidx.compose.ui.text.font.FontWeight
+//import androidx.compose.foundation.shape.CircleShape
+//import androidx.compose.ui.unit.sp
+//import androidx.compose.material3.Icon
 import androidx.camera.core.Camera
-import androidx.camera.core.CameraControl
-import android.view.ViewGroup
-import android.view.View
+//import androidx.camera.core.CameraControl
+//import android.view.ViewGroup
+//import android.view.View
+import android.widget.FrameLayout
+import android.widget.ImageButton
+import androidx.core.os.HandlerCompat.postDelayed
 
 class MainActivity : ComponentActivity() {
     private var imageCapture: ImageCapture? = null
+    private lateinit var viewFinder: PreviewView
 
-    private lateinit var previewView: PreviewView // PreviewView를 클래스 변수로 선언
     private lateinit var camera: Camera // 카메라 객체 추가
     private lateinit var bodyAnalyzer: BodyAnalyzer
     private lateinit var multiFaceAnalyzer: MultiFaceAnalyzer
     private lateinit var poseComparator: PoseComparator
-    private lateinit var referencePose: Referencepose
+    private lateinit var referenceCom: ReferencePoints
+    private lateinit var referencePose: ReferencePoints
     private lateinit var poseSuggestionView: PoseSuggestionView
     private var currentCameraSelector = CameraSelector.DEFAULT_BACK_CAMERA // 기본은 후면 카메라
 
@@ -88,17 +95,30 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // PreviewView 초기화
-        previewView = PreviewView(this).apply {
-            scaleType = PreviewView.ScaleType.FILL_CENTER
-            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-        }
+        setContentView(R.layout.activity_main)
+        // Initialize views
+        viewFinder = findViewById(R.id.viewFinder)
+        val captureButton: ImageButton = findViewById(R.id.camera_capture_button)
+        val switchButton: ImageButton = findViewById(R.id.camera_switch_button)
+
+        // Set click listeners
+        captureButton.setOnClickListener { takePhoto() }
+        switchButton.setOnClickListener { toggleCamera() }
 
         // JSON 파일 로드
-        val jsonString = assets.open("reference_pose.json").bufferedReader().use { it.readText() }
-        referencePose = Gson().fromJson(jsonString, Referencepose::class.java)
+        try {
+            val jsonCOM = assets.open("half_average_com.json").bufferedReader().use { it.readText() }
+            val jsonPose = assets.open("half_average_posture.json").bufferedReader().use { it.readText() }
+            referenceCom = Gson().fromJson(jsonCOM, ReferencePoints::class.java)
+            referencePose = Gson().fromJson(jsonPose, ReferencePoints::class.java)
+            poseComparator = PoseComparator(referencePose, referenceCom)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading JSON files", e)
+        }
 
-        poseComparator = PoseComparator()
+
+
+
         poseSuggestionView = PoseSuggestionView(this)
 
         bodyAnalyzer = BodyAnalyzer(this) { result: PoseLandmarkerResult, mpImage: MPImage ->
@@ -106,21 +126,17 @@ class MainActivity : ComponentActivity() {
         }
         multiFaceAnalyzer = MultiFaceAnalyzer(this)
 
+        val overlayContainer = findViewById<FrameLayout>(R.id.overlay_container)
+        overlayContainer.addView(poseSuggestionView)
+
         if (allPermissionsGranted()) {
             bindCameraUseCases()
         } else {
             requestPermissions()
         }
+        setupOverlayView()
 
-        setContent {
-            CameraAppTheme {
-                CameraScreen(
-                    previewView = previewView,
-                    onTakePhoto = { takePhoto() },
-                    onToggleCamera = { toggleCamera() }
-                )
-            }
-        }
+
     }
 
     private fun toggleCamera() {
@@ -139,7 +155,7 @@ class MainActivity : ComponentActivity() {
                 val cameraProvider = cameraProviderFuture.get()
 
                 val previewUseCase = Preview.Builder().build().also {
-                    it.setSurfaceProvider(previewView.surfaceProvider)
+                    it.setSurfaceProvider(viewFinder.surfaceProvider)
                 }
 
                 val imageCaptureUseCase = ImageCapture.Builder()
@@ -182,153 +198,180 @@ class MainActivity : ComponentActivity() {
         requestPermissionLauncher.launch(REQUIRED_PERMISSIONS)
     }
 
-    @Composable
-    fun CameraScreen(
-        previewView: PreviewView,
-        onTakePhoto: () -> Unit,
-        onToggleCamera: () -> Unit
-    ) {
-        val context = LocalContext.current  // context 정의 추가
-        Box(modifier = Modifier
-                .fillMaxSize()
-            .background(Color.Black)
-        ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
+//   @Composable
+//    fun CameraScreen(
+//        viewFinder: PreviewView,
+//        onTakePhoto: () -> Unit,
+//        onToggleCamera: () -> Unit
+//    ) {
+//        val context = LocalContext.current  // context 정의 추가
+//        Box(modifier = Modifier
+//                .fillMaxSize()
+//            .background(Color.Black)
+//        ) {
+//        Column(
+//            modifier = Modifier.fillMaxSize(),
+//            horizontalAlignment = Alignment.CenterHorizontally,
+//
+//        ) {
+//            Box(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .weight(1.3f)
+//                    .background(Color.Black) // 검정색 배경
+//            )
+//
+//            Box(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .aspectRatio(3f / 4f)  // 3:4 비율 설정
+//                    .background(Color.Black)
+//
+//            ) {
+//
+//                Box(
+//                    modifier = Modifier
+//                        .align(Alignment.Center)
+//                        .fillMaxHeight()
+//                        .aspectRatio(3f / 4f)
+//
+//                ) {
+//
+//                    // 카메라 프리뷰
+//                    AndroidView(
+//                        factory = {
+//                            // 부모 뷰가 있으면 제거
+//                            viewFinder.parent?.let { parent ->
+//                                (parent as? ViewGroup)?.removeView(viewFinder)
+//                            }
+//                            viewFinder
+//                        },
+//                        modifier = Modifier.fillMaxSize()
+//                    )
+//
+//                    // 오버레이 추가
+//                    val overlayView = remember {
+//                        object : View(context) {
+//                            override fun onDraw(canvas: android.graphics.Canvas) {
+//                                super.onDraw(canvas)
+//                                multiFaceAnalyzer.drawFaces(canvas)
+//                                bodyAnalyzer.lastResult?.landmarks()?.firstOrNull()
+//                                    ?.let { landmarks ->
+//                                        bodyAnalyzer.drawPose(canvas, landmarks)
+//                                    }
+//                            }
+//                        }.apply {
+//                            setWillNotDraw(false)
+//                        }
+//                    }
+//
+//                    AndroidView(
+//                        factory = { overlayView },
+//                        modifier = Modifier.fillMaxSize()
+//                    )
+//
+//                    AndroidView(
+//                        factory = { poseSuggestionView },
+//                        modifier = Modifier.fillMaxSize()
+//                    )
+//
+//
+//                    // 오버레이 갱신
+//                    LaunchedEffect(overlayView) {
+//                        while (true) {
+//                            overlayView.invalidate()
+//                            delay(16) // 약 60fps
+//                        }
+//                    }
+//                }
+//            }
+//
+//            //Spacer(modifier = Modifier.height(16.dp)) // 프리뷰와 버튼 사이 여백
+//            // 하단 검정색 공백 및 버튼 영역
+//            Box(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .weight(1.8f) // 남은 공간을 차지
+//                    .background(Color.Black), // 검정색 배경
+//                contentAlignment = Alignment.Center
+//            ) {
+//                Row(
+//                    modifier = Modifier
+//                        .fillMaxWidth()
+//                        .padding(horizontal = 16.dp),
+//                    //horizontalArrangement = Arrangement.Center, // 버튼 간격 조정
+//                    verticalAlignment = Alignment.CenterVertically
+//                ) {
+//
+//                    // 왼쪽 Spacer (중앙 정렬을 위한 여백)
+//                    Spacer(modifier = Modifier.weight(1.3f))
+//
+//                    // 사진 촬영 버튼
+//                    Button(
+//                        onClick = onTakePhoto,
+//                        modifier = Modifier.size(60.dp),
+//                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+//                        shape = CircleShape,
+//                        elevation = ButtonDefaults.buttonElevation(
+//                            defaultElevation = 6.dp,
+//                            pressedElevation = 8.dp
+//                        )
+//                    ) {
+//
+//                    }
+//
+//                    // 오른쪽 Spacer (셀카 모드 전환 버튼 간격)
+//                    Spacer(modifier = Modifier.weight(0.8f))
+//
+//                    // 셀카 모드 전환 버튼
+//                    Button(
+//                        onClick = onToggleCamera,
+//                        modifier = Modifier.size(45.dp),
+//                        colors = ButtonDefaults.buttonColors(
+//                            containerColor = Color.Gray,
+//                            contentColor = Color.White
+//                        ),
+//                        shape = CircleShape,
+//                        contentPadding = PaddingValues(0.dp) // 기본 패딩 제거
+//                    ) {
+//                        Icon(
+//                            imageVector = Icons.Default.Loop,
+//                            contentDescription = "Flip Camera",
+//                            modifier = Modifier.size(25.dp)
+//                        )
+//                    }
+//                }
+//            }
+//        }
+//
+//        }
+//    }
 
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1.3f)
-                    .background(Color.Black) // 검정색 배경
-            )
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(3f / 4f)  // 3:4 비율 설정
-                    .background(Color.Black)
-
-            ) {
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .fillMaxHeight()
-                        .aspectRatio(3f / 4f)
-
-                ) {
-
-                    // 카메라 프리뷰
-                    AndroidView(
-                        factory = {
-                            // 부모 뷰가 있으면 제거
-                            previewView.parent?.let { parent ->
-                                (parent as? ViewGroup)?.removeView(previewView)
-                            }
-                            previewView
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
-
-                    // 오버레이 추가
-                    val overlayView = remember {
-                        object : View(context) {
-                            override fun onDraw(canvas: android.graphics.Canvas) {
-                                super.onDraw(canvas)
-                                multiFaceAnalyzer.drawFaces(canvas)
-                                bodyAnalyzer.lastResult?.landmarks()?.firstOrNull()
-                                    ?.let { landmarks ->
-                                        bodyAnalyzer.drawPose(canvas, landmarks)
-                                    }
-                            }
-                        }.apply {
-                            setWillNotDraw(false)
-                        }
-                    }
-
-                    AndroidView(
-                        factory = { overlayView },
-                        modifier = Modifier.fillMaxSize()
-                    )
-
-                    AndroidView(
-                        factory = { poseSuggestionView },
-                        modifier = Modifier.fillMaxSize()
-                    )
-
-
-                    // 오버레이 갱신
-                    LaunchedEffect(overlayView) {
-                        while (true) {
-                            overlayView.invalidate()
-                            delay(16) // 약 60fps
-                        }
-                    }
+    private fun setupOverlayView() {
+        val overlayView = object : View(this) {
+            override fun onDraw(canvas: android.graphics.Canvas) {
+                super.onDraw(canvas)
+                multiFaceAnalyzer.drawFaces(canvas)
+                bodyAnalyzer.lastResult?.landmarks()?.firstOrNull()?.let { landmarks ->
+                    bodyAnalyzer.drawPose(canvas, landmarks)
                 }
             }
+        }.apply {
+            setWillNotDraw(false)
+        }
 
-            //Spacer(modifier = Modifier.height(16.dp)) // 프리뷰와 버튼 사이 여백
-            // 하단 검정색 공백 및 버튼 영역
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1.8f) // 남은 공간을 차지
-                    .background(Color.Black), // 검정색 배경
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    //horizontalArrangement = Arrangement.Center, // 버튼 간격 조정
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+        findViewById<FrameLayout>(R.id.overlay_container).addView(overlayView)
 
-                    // 왼쪽 Spacer (중앙 정렬을 위한 여백)
-                    Spacer(modifier = Modifier.weight(1.5f))
-
-                    // 사진 촬영 버튼
-                    Button(
-                        onClick = onTakePhoto,
-                        modifier = Modifier.size(60.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                        shape = CircleShape,
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 6.dp,
-                            pressedElevation = 8.dp
-                        )
-                    ) {
-
-                    }
-
-                    // 오른쪽 Spacer (셀카 모드 전환 버튼 간격)
-                    Spacer(modifier = Modifier.weight(0.8f))
-
-                    // 셀카 모드 전환 버튼
-                    Button(
-                        onClick = onToggleCamera,
-                        modifier = Modifier.size(45.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Gray,
-                            contentColor = Color.White
-                        ),
-                        shape = CircleShape,
-                        contentPadding = PaddingValues(0.dp) // 기본 패딩 제거
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Loop,
-                            contentDescription = "Flip Camera",
-                            modifier = Modifier.size(25.dp)
-                        )
-                    }
-                }
+        // 60fps 갱신
+        val handler = Handler(Looper.getMainLooper())
+        val runnable = object : Runnable {
+            override fun run() {
+                overlayView.invalidate()
+                handler.postDelayed(this, 16L)
             }
         }
-
-        }
+        handler.postDelayed(runnable, 16L)
     }
 
     private fun processImage(imageProxy: ImageProxy) {
@@ -378,8 +421,8 @@ class MainActivity : ComponentActivity() {
                 landmarks,
                 referencePose,
                 imageWidth,
-                imageHeight,
-                poseSuggestionView.getShouldLog()
+                imageHeight
+                //poseSuggestionView.getShouldLog()
             )
 
             // UI 업데이트
@@ -398,7 +441,7 @@ class MainActivity : ComponentActivity() {
             put(MediaStore.MediaColumns.DISPLAY_NAME, name)
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CameraApp")
+                put(MediaStore.Images.Media.RELATIVE_PATH, "DCIM/Camera")
             }
         }
 
@@ -419,6 +462,8 @@ class MainActivity : ComponentActivity() {
                     val msg = "사진 저장 완료: ${output.savedUri}"
                     Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
                     Log.d(TAG, msg)
+
+
                 }
             }
         )
