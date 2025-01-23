@@ -14,7 +14,7 @@ import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
 
 class MultiFaceAnalyzer(context: Context) {
     private var faceLandmarker: FaceLandmarker
-    private var lastResult: FaceLandmarkerResult? = null
+    var lastResult: FaceLandmarkerResult? = null
     private var selectedFaceIndex: Int? = null
     private val faceBoxes = mutableListOf<RectF>()
     private var lastProcessingTimeMs = 0L
@@ -103,30 +103,30 @@ class MultiFaceAnalyzer(context: Context) {
             ))
 
 
-            Log.d(TAG, "Face $index bounds: left=$minX, top=$minY, right=$maxX, bottom=$maxY")
+//            Log.d(TAG, "Face $index bounds: left=$minX, top=$minY, right=$maxX, bottom=$maxY")
         }
     }
 
     fun drawFaces(canvas: Canvas) {
-        faceBoxes.forEachIndexed { index, box ->
-            boxPaint.color = if (index == selectedFaceIndex) Color.RED else Color.GREEN
-            canvas.drawRect(
-                (1 - box.left) * canvas.width,    // 변환된 x 좌표
-                box.top * canvas.height,          // y 좌표
-                (1 - box.right) * canvas.width,   // 변환된 x 좌표
-                box.bottom * canvas.height,
-                boxPaint
-            )
-
-            lastResult?.faceLandmarks()?.getOrNull(index)?.forEach { landmark ->
-                canvas.drawCircle(
-                    (1 - landmark.y()) * canvas.width,  // y 좌표를 x로 변환
-                    landmark.x() * canvas.height,
-                    3f,
-                    landmarkPaint
-                )
-            }
-        }
+//        faceBoxes.forEachIndexed { index, box ->
+//            boxPaint.color = if (index == selectedFaceIndex) Color.RED else Color.GREEN
+//            canvas.drawRect(
+//                box.left * canvas.width,      // x 좌표
+//                box.top * canvas.height,      // y 좌표
+//                box.right * canvas.width,     // x 좌표
+//                box.bottom * canvas.height,   // y 좌표
+//                boxPaint
+//            )
+//
+////            lastResult?.faceLandmarks()?.getOrNull(index)?.forEach { landmark ->
+////                canvas.drawCircle(
+////                    (1 - landmark.y()) * canvas.width,  // x 좌표를 y로 변환
+////                    canvas.height - (landmark.x() * canvas.height),  // flip y 좌표 (upside down)
+////                    3f,
+////                    landmarkPaint
+////                )
+////            }
+//        }
     }
 
     fun selectFace(x: Float, y: Float, viewWidth: Int, viewHeight: Int) {
@@ -138,7 +138,7 @@ class MultiFaceAnalyzer(context: Context) {
                     normalizedY >= box.top && normalizedY <= box.bottom
         }.takeIf { it >= 0 }
 
-        Log.d(TAG, "Selected face index: $selectedFaceIndex")
+//        Log.d(TAG, "Selected face index: $selectedFaceIndex")
     }
 
     fun getSelectedFaceBounds(): RectF? {

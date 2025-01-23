@@ -63,18 +63,18 @@ class BodyAnalyzer(
         canvas.save()
         canvas.clipRect(0f, topMargin, rect.width().toFloat(), rect.height().toFloat())
 
-        // 랜드마크 점 그리기
-        for (landmark in landmarks) {
-            canvas.drawCircle(
-                (1 - landmark.y()) * canvas.width,
-                landmark.x() * canvas.height,
-                8f,
-                paint
-            )
-        }
+//        // 랜드마크 점 그리기
+//        for (landmark in landmarks) {
+//            canvas.drawCircle(
+//                (1 - landmark.y()) * canvas.width,
+//                landmark.x() * canvas.height,
+//                8f,
+//                paint
+//            )
+//        }
 
-        // 연결선 그리기
-        drawConnections(canvas, landmarks)
+//        // 연결선 그리기
+//        drawConnections(canvas, landmarks)
 
         canvas.restore()
     }
