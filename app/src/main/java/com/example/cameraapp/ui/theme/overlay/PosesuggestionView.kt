@@ -112,12 +112,12 @@ class PoseSuggestionView(context: Context) : View(context) {
 
             // 구도 점수
             scorePaint.color = when {
-                result.centerScore >= 90 -> Color.GREEN
-                result.centerScore >= 70 -> Color.YELLOW
+                result.thirdsScore >= 90 -> Color.GREEN
+                result.thirdsScore >= 70 -> Color.YELLOW
                 else -> Color.RED
             }
             canvas.drawText(
-                "구도: ${result.centerScore.toInt()}%",
+                "구도: ${result.thirdsScore.toInt()}%",
                 scoreX,
                 scoreBaseY + 200f,
                 scorePaint
