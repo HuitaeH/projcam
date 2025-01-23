@@ -63,9 +63,6 @@ class PoseComparator( private val referencePose: ReferencePoints,
 
 
 
-
-
-
     // 마지막 로그 출력 시간을 저장
     private var lastLogTime = 0L
 
@@ -130,7 +127,7 @@ class PoseComparator( private val referencePose: ReferencePoints,
         )
         differences["HIPS"] = (leftHipDiff + rightHipDiff) / 2
 
-        // 2. 삼분할 구도 비교
+
         val comScore = compareDataProximity(
             currentLandmarks,
             imageWidth,
@@ -172,45 +169,18 @@ class PoseComparator( private val referencePose: ReferencePoints,
         imageWidth: Int,
         imageHeight: Int
     ): String {
-        val (referenceNoseX, referenceNoseY) = restoreNormalizedValues("NOSE")
-        val referenceDistance=calculateDistance(
-            referenceNoseX,
-            referenceNoseY,
-            referenceCom.average_com?.x ?: 0f,
-            referenceCom.average_com?.y ?: 0f
-        )
+        val leftShoulder = currentLandmarks[11]
+        val rightShoulder = currentLandmarks[12]
+        val currentShoulderDistance = abs(leftShoulder.x() - rightShoulder.x())
 
-        // Normalize current nose
-        val currentNose = currentLandmarks[0]
-        val normalizedCurrentNoseX = currentNose.x()
-        val normalizedCurrentNoseY = currentNose.y()
+        //val referenceShoulderDistance = 0.15f
 
-        // Normalize current COM
-        val normalizedCurrentComX = currentCenterX / imageWidth
-        val normalizedCurrentComY = currentCenterY / imageHeight
-
-        // Log the normalized values
-        Log.d(TAG, "Current COM - X: $normalizedCurrentComX, Y: $normalizedCurrentComY")
-        Log.d(TAG, "Current Nose - X: $normalizedCurrentNoseX, Y: $normalizedCurrentNoseY")
-        Log.d(TAG, "Reference COM - X: ${referenceCom.average_com?.x}, Y: ${referenceCom.average_com?.y}")
-        Log.d(TAG, "Reference Nose - X: $referenceNoseX, Y: $referenceNoseY")
-        Log.d(TAG, "Reference Distance: $referenceDistance")
-
-        val currentDistance = calculateDistance(
-            normalizedCurrentNoseX,
-            normalizedCurrentNoseY,
-            normalizedCurrentComX,
-            normalizedCurrentComY
-        )
-
-
-
-        Log.d(TAG, "Current Distance: $currentDistance")
+        Log.d(TAG, "Current Distance: $currentShoulderDistance")
 
         return when {
-            currentDistance > referenceDistance -> "Zoom Out"
-            currentDistance < referenceDistance -> "Zoom In"
-            else -> "Perfect Zoom"
+            currentShoulderDistance > 0.01f -> "Zoom Out"        // 너무 가까울 때
+            currentShoulderDistance < 0.005f -> "Zoom In"         // 너무 멀 때
+            else -> "Perfect Zoom"                               // 적절한 거리
         }
     }
 
@@ -259,6 +229,7 @@ class PoseComparator( private val referencePose: ReferencePoints,
             else -> 30f               // 매우 부족
         }
     }
+
     private fun calculatePartScore(xScore: Float, yScore: Float): Float {
         // 둘 다 높은 점수일 때 보너스
         if (xScore >= 80f && yScore >= 80f) {
@@ -304,8 +275,6 @@ class PoseComparator( private val referencePose: ReferencePoints,
 
         val currentHipX = ((1 - leftHip.y()) + (1 - rightHip.y())) / 2 * imageWidth
         val currentHipY = (leftHip.x() + rightHip.x()) / 2 * imageHeight
-
-
 
 
         // 정규화된 거리 계산 (0-1 사이의 값)
