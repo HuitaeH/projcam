@@ -195,9 +195,13 @@ class MainActivity : ComponentActivity() {
         if (currentCameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA) {
             poseSuggestionView.visibility = View.GONE
             faceSuggestionView.visibility = View.VISIBLE
+            faceSuggestionView.invalidate() // Clears the face suggestion overlay
+
         } else {
             faceSuggestionView.visibility = View.GONE
             poseSuggestionView.visibility = View.VISIBLE
+            poseSuggestionView.invalidate() // Clears the pose suggestion overlay
+
         }
     }
 

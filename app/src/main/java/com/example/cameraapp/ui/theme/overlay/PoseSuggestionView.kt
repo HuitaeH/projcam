@@ -153,12 +153,12 @@ class PoseSuggestionView(context: Context) : View(context) {
                 result.centerScore >= 70 -> Color.YELLOW
                 else -> Color.RED
             }
-            canvas.drawText(
-                "구도: ${result.centerScore.toInt()}%",
-                scoreX,
-                scoreBaseY + 200f,
-                scorePaint
-            )
+//            canvas.drawText(
+//                "구도: ${result.centerScore.toInt()}%",
+//                scoreX,
+//                scoreBaseY + 200f,
+//                scorePaint
+//            )
 
 
 

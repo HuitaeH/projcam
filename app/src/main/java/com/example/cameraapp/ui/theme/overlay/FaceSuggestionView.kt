@@ -98,34 +98,14 @@ class FaceSuggestionView(context: Context) : View(context) {
                 result.overallScore >= 70 -> Color.YELLOW
                 else -> Color.RED
             }
-            canvas.drawText("얼굴 점수: ${result.overallScore.toInt()}%", scoreX, scoreBaseY, scorePaint)
+            canvas.drawText("아재력: ${result.overallScore.toInt()}%", scoreX, scoreBaseY, scorePaint)
 
             // 화살표 표시
             drawDirectionalArrows(canvas, result)
 
-            // 제안사항 표시
-            drawSuggestions(canvas, result.suggestions)
 
-            // 로그 버튼 그리기
-            val buttonWidth = 150f
-            val buttonHeight = 80f
-            val buttonLeft = width - buttonWidth - 20f
-            val buttonTop = 20f
-            canvas.drawRoundRect(
-                buttonLeft,
-                buttonTop,
-                buttonLeft + buttonWidth,
-                buttonTop + buttonHeight,
-                20f,
-                20f,
-                logButtonPaint
-            )
-            canvas.drawText(
-                "로그",
-                buttonLeft + buttonWidth / 2,
-                buttonTop + buttonHeight / 2 + 15f,
-                logButtonTextPaint
-            )
+
+
         }
     }
 
