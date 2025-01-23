@@ -382,8 +382,7 @@ class MainActivity_copy : ComponentActivity() {
                 landmarks,
                 referencePose,
                 imageWidth,
-                imageHeight,
-                poseSuggestionView.getShouldLog()
+                imageHeight
             )
 
             // UI 업데이트

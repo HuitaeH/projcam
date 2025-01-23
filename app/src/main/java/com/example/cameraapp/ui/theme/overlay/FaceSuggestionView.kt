@@ -94,11 +94,11 @@ class FaceSuggestionView(context: Context) : View(context) {
 
             // 얼굴 점수
             scorePaint.color = when {
-                result.faceScore >= 90 -> Color.GREEN
-                result.faceScore >= 70 -> Color.YELLOW
+                result.overallScore >= 90 -> Color.GREEN
+                result.overallScore >= 70 -> Color.YELLOW
                 else -> Color.RED
             }
-            canvas.drawText("얼굴 점수: ${result.faceScore.toInt()}%", scoreX, scoreBaseY, scorePaint)
+            canvas.drawText("얼굴 점수: ${result.overallScore.toInt()}%", scoreX, scoreBaseY, scorePaint)
 
             // 화살표 표시
             drawDirectionalArrows(canvas, result)
@@ -177,7 +177,7 @@ class FaceSuggestionView(context: Context) : View(context) {
 
     private fun drawDirectionalArrows(canvas: Canvas, result: FacialComparator.ComparisonResult) {
         // 점수가 낮을수록 화살표가 더 선명하게 표시
-        arrowPaint.alpha = ((100 - result.faceScore) * 2.55f).toInt().coerceIn(0, 255)
+        arrowPaint.alpha = ((100 - result.overallScore) * 2.55f).toInt().coerceIn(0, 255)
 
         result.detailedScores.forEach { (key, score) ->
             val threshold = 0.5f  // 임계값
