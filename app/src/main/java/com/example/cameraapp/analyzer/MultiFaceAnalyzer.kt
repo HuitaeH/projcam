@@ -14,7 +14,7 @@ import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
 
 class MultiFaceAnalyzer(context: Context) {
     private var faceLandmarker: FaceLandmarker
-    private var lastResult: FaceLandmarkerResult? = null
+    var lastResult: FaceLandmarkerResult? = null
     private var selectedFaceIndex: Int? = null
     private val faceBoxes = mutableListOf<RectF>()
     private var lastProcessingTimeMs = 0L
