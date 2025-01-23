@@ -104,7 +104,7 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         )
         differences["HIPS"] = (leftHipDiff + rightHipDiff) / 2
 
-        // 2. 삼분할 구도 비교
+
         val comScore = compareDataProximity(
             currentLandmarks,
             imageWidth,
@@ -168,6 +168,7 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
             else -> 30f               // 매우 부족
         }
     }
+
     private fun calculatePartScore(xScore: Float, yScore: Float): Float {
         // 둘 다 높은 점수일 때 보너스
         if (xScore >= 80f && yScore >= 80f) {
@@ -249,7 +250,7 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         // 최종 점수 계산
         val finalScore = (noseScore + shoulderScore + hipScore) / 3
 
-        // 5초마다 로그 출력
+        // 누르면 로그 출력
         if (shouldLog) {
             Log.d("ThirdsGuide", """
                 COM:

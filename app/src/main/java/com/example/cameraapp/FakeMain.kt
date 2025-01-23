@@ -23,14 +23,12 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -43,9 +41,7 @@ import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 import com.example.cameraapp.analyzer.PoseComparator
 import com.example.cameraapp.analyzer.FacialComparator
 import com.example.cameraapp.model.ReferencePoints
@@ -54,18 +50,13 @@ import androidx.compose.material3.ButtonDefaults  // 이 import 추가
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Loop
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Icon
 import androidx.camera.core.Camera
-import androidx.camera.core.CameraControl
 import android.view.ViewGroup
 import android.view.View
-import com.example.cameraapp.model.ReferenceFace
 
-class MainActivity : ComponentActivity() {
+class MainActivity_copy : ComponentActivity() {
     private var imageCapture: ImageCapture? = null
 
     private lateinit var previewView: PreviewView // PreviewView를 클래스 변수로 선언
@@ -76,7 +67,6 @@ class MainActivity : ComponentActivity() {
     private lateinit var facialComparator: FacialComparator
     private lateinit var referenceCom: ReferencePoints
     private lateinit var referencePose: ReferencePoints
-    private lateinit var referenceFace: ReferenceFace
     private lateinit var poseSuggestionView: PoseSuggestionView
     private var currentCameraSelector = CameraSelector.DEFAULT_BACK_CAMERA // 기본은 후면 카메라
 
@@ -99,7 +89,7 @@ class MainActivity : ComponentActivity() {
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         }
 
-        // JSON for pose comparator
+        // JSON 파일 로드
         try {
             val jsonCOM = assets.open("half_average_com.json").bufferedReader().use { it.readText() }
             val jsonPose = assets.open("half_average_posture.json").bufferedReader().use { it.readText() }
@@ -110,14 +100,6 @@ class MainActivity : ComponentActivity() {
             Log.e(TAG, "Error loading JSON files", e)
         }
 
-        // JSON for facial comparator
-        try {
-            val jsonFace = assets.open("face_average.json").bufferedReader().use { it.readText() }
-            referenceFace = Gson().fromJson(jsonFace, ReferenceFace::class.java)
-            facialComparator = FacialComparator(referenceFace)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error loading JSON files", e)
-        }
 
 
 
@@ -151,17 +133,8 @@ class MainActivity : ComponentActivity() {
         } else {
             CameraSelector.DEFAULT_BACK_CAMERA
         }
-
-        // Switch comparators based on the selected camera
-        if (currentCameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA) {
-            poseComparator = PoseComparator(referencePose, referenceCom)  // Use pose comparator for back camera
-        } else {
-            facialComparator = FacialComparator(referenceFace)  // Use facial comparator for front camera
-        }
-
-        bindCameraUseCases() // Re-bind camera use cases
+        bindCameraUseCases() // 카메라 재설정
     }
-
 
     private fun bindCameraUseCases() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
@@ -264,26 +237,26 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize()
                     )
 
-//                    // 오버레이 추가
-//                    val overlayView = remember {
-//                        object : View(context) {
-//                            override fun onDraw(canvas: android.graphics.Canvas) {
-//                                super.onDraw(canvas)
-//                                multiFaceAnalyzer.drawFaces(canvas)
-//                                bodyAnalyzer.lastResult?.landmarks()?.firstOrNull()
-//                                    ?.let { landmarks ->
-//                                        bodyAnalyzer.drawPose(canvas, landmarks)
-//                                    }
-//                            }
-//                        }.apply {
-//                            setWillNotDraw(false)
-//                        }
-//                    }
+                    // 오버레이 추가
+                    val overlayView = remember {
+                        object : View(context) {
+                            override fun onDraw(canvas: android.graphics.Canvas) {
+                                super.onDraw(canvas)
+                                multiFaceAnalyzer.drawFaces(canvas)
+                                bodyAnalyzer.lastResult?.landmarks()?.firstOrNull()
+                                    ?.let { landmarks ->
+                                        bodyAnalyzer.drawPose(canvas, landmarks)
+                                    }
+                            }
+                        }.apply {
+                            setWillNotDraw(false)
+                        }
+                    }
 
-//                    AndroidView(
-//                        factory = { overlayView },
-//                        modifier = Modifier.fillMaxSize()
-//                    )
+                    AndroidView(
+                        factory = { overlayView },
+                        modifier = Modifier.fillMaxSize()
+                    )
 
                     AndroidView(
                         factory = { poseSuggestionView },
@@ -291,13 +264,13 @@ class MainActivity : ComponentActivity() {
                     )
 
 
-//                    // 오버레이 갱신
-//                    LaunchedEffect(overlayView) {
-//                        while (true) {
-//                            overlayView.invalidate()
-//                            delay(16) // 약 60fps
-//                        }
-//                    }
+                    // 오버레이 갱신
+                    LaunchedEffect(overlayView) {
+                        while (true) {
+                            overlayView.invalidate()
+                            delay(16) // 약 60fps
+                        }
+                    }
                 }
             }
 
@@ -366,8 +339,7 @@ class MainActivity : ComponentActivity() {
         val mediaImage = imageProxy.image ?: return
         try {
             val bitmap = imageProxy.toBitmap()
-            val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 640, 480, true) // Resize image
-            val mpImage = BitmapImageBuilder(resizedBitmap).build()
+            val mpImage = BitmapImageBuilder(bitmap).build()
             bodyAnalyzer.detectPose(mpImage)
             multiFaceAnalyzer.detectFaces(mpImage)
         } catch (e: Exception) {
@@ -376,7 +348,6 @@ class MainActivity : ComponentActivity() {
             imageProxy.close()
         }
     }
-
 
     private fun ImageProxy.toBitmap(): Bitmap {
         val yBuffer = planes[0].buffer
@@ -400,8 +371,6 @@ class MainActivity : ComponentActivity() {
         return BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
     }
 
-
-
     private fun handlePoseResult(result: PoseLandmarkerResult, mpImage: MPImage) {
         result.landmarks().firstOrNull()?.let { landmarks ->
 
@@ -423,8 +392,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
-
 
     private fun takePhoto() {
         val imageCapture = imageCapture ?: return

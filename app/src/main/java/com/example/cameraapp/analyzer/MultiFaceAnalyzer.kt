@@ -103,7 +103,7 @@ class MultiFaceAnalyzer(context: Context) {
             ))
 
 
-            Log.d(TAG, "Face $index bounds: left=$minX, top=$minY, right=$maxX, bottom=$maxY")
+//            Log.d(TAG, "Face $index bounds: left=$minX, top=$minY, right=$maxX, bottom=$maxY")
         }
     }
 
@@ -138,7 +138,7 @@ class MultiFaceAnalyzer(context: Context) {
                     normalizedY >= box.top && normalizedY <= box.bottom
         }.takeIf { it >= 0 }
 
-        Log.d(TAG, "Selected face index: $selectedFaceIndex")
+//        Log.d(TAG, "Selected face index: $selectedFaceIndex")
     }
 
     fun getSelectedFaceBounds(): RectF? {

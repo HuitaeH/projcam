@@ -1,11 +1,14 @@
 package com.example.cameraapp.analyzer
 
+import android.util.Log
+import com.example.cameraapp.model.PoseLandmark
+import com.example.cameraapp.model.ReferenceFace
+import com.example.cameraapp.model.ReferencePoints
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
+import kotlin.math.abs
 import kotlin.math.sqrt
 
-class FacialComparator(
-    private val referenceFacialData: FacialData
-) {
+class FacialComparator(referenceFace: ReferenceFace) {
     companion object {
         private const val TAG = "FacialComparator"
         private const val POSITION_THRESHOLD = 0.1f
@@ -14,16 +17,23 @@ class FacialComparator(
     }
 
     // Parse facial data from the JSON
-    val centerX = referenceFacialData.average_center?.x ?: 0f
-    val centerY = referenceFacialData.average_center?.y ?: 0f
+    val centerX = referenceFace.average_center?.x ?: 0f
+    val centerY = referenceFace.average_center?.y ?: 0f
 
-    val leftEyeDistance = referenceFacialData.average_distances?.left_eye ?: 0f
-    val rightEyeDistance = referenceFacialData.average_distances?.right_eye ?: 0f
-    val leftEarDistance = referenceFacialData.average_distances?.left_ear ?: 0f
-    val rightEarDistance = referenceFacialData.average_distances?.right_ear ?: 0f
-    val mouthCenterDistance = referenceFacialData.average_distances?.mouth_center ?: 0f
-    val chinDistance = referenceFacialData.average_distances?.chin ?: 0f
-    val foreheadDistance = referenceFacialData.average_distances?.forehead ?: 0f
+    val leftEyeDistanceX = referenceFace.average_distances["left_eye"]?.x ?: 0f
+    val leftEyeDistanceY = referenceFace.average_distances["left_eye"]?.y ?: 0f
+    val rightEyeDistanceX = referenceFace.average_distances["right_eye"]?.x ?: 0f
+    val rightEyeDistanceY = referenceFace.average_distances["right_eye"]?.y ?: 0f
+    val leftEarDistanceX = referenceFace.average_distances["left_ear"]?.x ?: 0f
+    val leftEarDistanceY = referenceFace.average_distances["left_ear"]?.y ?: 0f
+    val rightEarDistanceX = referenceFace.average_distances["right_ear"]?.x ?: 0f
+    val rightEarDistanceY = referenceFace.average_distances["right_ear"]?.y ?: 0f
+    val mouthCenterDistanceX = referenceFace.average_distances["mouth_center"]?.x ?: 0f
+    val mouthCenterDistanceY = referenceFace.average_distances["mouth_center"]?.y ?: 0f
+    val chinDistanceX = referenceFace.average_distances["chin"]?.x ?: 0f
+    val chinDistanceY = referenceFace.average_distances["chin"]?.y ?: 0f
+    val foreheadDistanceX = referenceFace.average_distances["forehead"]?.x ?: 0f
+    val foreheadDistanceY = referenceFace.average_distances["forehead"]?.y ?: 0f
 
     // Store the last log time
     private var lastLogTime = 0L
@@ -44,57 +54,74 @@ class FacialComparator(
         return false
     }
 
-    fun compareFacialFeatures(
+    fun compareFace(
         currentLandmarks: List<NormalizedLandmark>,
+        referenceFace: ReferenceFace,
+        imageWidth: Int,
+        imageHeight: Int,
         shouldLog: Boolean
     ): ComparisonResult {
         val differences = mutableMapOf<String, Float>()
         val suggestions = mutableListOf<String>()
 
         // Compare the average center of the face
-        differences["CENTER"] = comparePosition(
+        differences["NOSE"] = comparePosition(
             currentLandmarks[0], // Assuming the nose or a similar center point
-            centerX,
-            centerY
+            referenceFace.average_center.x,
+            referenceFace.average_center.y
         )
+
+        Log.d(TAG, "NOSE - Current: (${currentLandmarks[0].x()}, ${currentLandmarks[0].y()}), " +
+                "Reference: (${referenceFace.average_center.x}, ${referenceFace.average_center.y}), " +
+                "Diff: ${differences["NOSE"]}")
+
 
         // Compare left and right eye distances
         val leftEyeDiff = compareDistance(
             currentLandmarks[1], // Left eye
-            leftEyeDistance
+            referenceFace.average_distances["left_eye"]!!
         )
         val rightEyeDiff = compareDistance(
             currentLandmarks[2], // Right eye
-            rightEyeDistance
+            referenceFace.average_distances["right_eye"]!!
         )
         differences["EYES"] = (leftEyeDiff + rightEyeDiff) / 2
+
+        Log.d(TAG, "EYES - Left Eye - Current: (${currentLandmarks[1].x()}, ${currentLandmarks[1].y()}), " +
+                "Reference: (${referenceFace.average_distances["left_eye"]?.x}, ${referenceFace.average_distances["left_eye"]?.y}), " +
+                "Diff: $leftEyeDiff")
+        Log.d(TAG, "EYES - Right Eye - Current: (${currentLandmarks[2].x()}, ${currentLandmarks[2].y()}), " +
+                "Reference: (${referenceFace.average_distances["right_eye"]?.x}, ${referenceFace.average_distances["right_eye"]?.y}), " +
+                "Diff: $rightEyeDiff")
+
 
         // Compare ear distances
         val leftEarDiff = compareDistance(
             currentLandmarks[3], // Left ear
-            leftEarDistance
+            referenceFace.average_distances["left_ear"]!!
         )
         val rightEarDiff = compareDistance(
             currentLandmarks[4], // Right ear
-            rightEarDistance
+            referenceFace.average_distances["right_ear"]!!
         )
         differences["EARS"] = (leftEarDiff + rightEarDiff) / 2
 
         // Compare mouth center and chin distances
         val mouthCenterDiff = compareDistance(
             currentLandmarks[5], // Mouth center
-            mouthCenterDistance
+            referenceFace.average_distances["mouth_center"]!!
+
         )
         val chinDiff = compareDistance(
             currentLandmarks[6], // Chin
-            chinDistance
+            referenceFace.average_distances["chin"]!!
         )
         differences["MOUTH_AND_CHIN"] = (mouthCenterDiff + chinDiff) / 2
 
         // Compare forehead distance
         val foreheadDiff = compareDistance(
             currentLandmarks[7], // Forehead
-            foreheadDistance
+            referenceFace.average_distances["forehead"]!!
         )
         differences["FOREHEAD"] = foreheadDiff
 
@@ -113,6 +140,175 @@ class FacialComparator(
         )
     }
 
+    private fun calculateNormalizedProximity(coordinate: Float, centerCoordinate: Float, dimension: Int): Float {
+        // 거리를 계산하고 이미지 크기로 나누어 정규화
+        return abs(coordinate - centerCoordinate) / dimension
+    }
+
+
+    private fun calculateXScore(diff: Float): Float {
+        // 0.05를 기준으로 점수 계산
+        val absDiff = abs(diff)
+        return when {
+            absDiff < 0.05f -> 100f  // 매우 정확
+            absDiff < 0.1f -> 80f   // 좋음
+            absDiff < 0.15f -> 60f  // 보통
+            absDiff < 0.2f -> 40f   // 부족
+            else -> 20f          // 매우 부족
+        }
+    }
+
+    private fun calculateYScore(diff: Float): Float {
+        val absDiff = abs(diff)
+        return when {
+            absDiff >= 0.1f -> 0f     // 너무 멀어서 점수 없음
+            absDiff < 0.02f -> 100f   // 매우 정확
+            absDiff < 0.04f -> 90f    // 우수
+            absDiff < 0.06f -> 70f    // 양호
+            absDiff < 0.08f -> 50f    // 부족
+            else -> 30f               // 매우 부족
+        }
+    }
+
+    private fun calculatePartScore(xScore: Float, yScore: Float): Float {
+        // 둘 다 높은 점수일 때 보너스
+        if (xScore >= 80f && yScore >= 80f) {
+            return 100f
+        }
+
+        // 둘 중 하나라도 매우 낮으면 감점
+        if (xScore <= 40f || yScore <= 40f) {
+            return (xScore + yScore) / 4  // 큰 폭의 감점
+        }
+
+        // 기본 점수 계산 (x:y = 6:4)
+        val baseScore = (xScore * 0.6f) + (yScore * 0.4f)
+
+        // 점수 구간별 보정
+        return when {
+            baseScore >= 70f -> baseScore * 1.2f  // 상위 점수 보너스
+            baseScore >= 50f -> baseScore * 1.1f  // 중상위 점수 약한 보너스
+            baseScore >= 30f -> baseScore * 0.9f  // 중하위 점수 약한 감점
+            else -> baseScore * 0.8f              // 하위 점수 감점
+        }.coerceIn(0f, 100f)  // 최종 점수는 0~100 사이로 제한
+    }
+
+    private fun compareDataProximity(
+        currentLandmarks: List<NormalizedLandmark>,
+        imageWidth: Int,
+        imageHeight: Int,
+        shouldLog: Boolean
+    ): Float {
+        // 현재 랜드마크의 위치를 픽셀 좌표로 변환
+        val currentCenter = currentLandmarks[1]
+
+        val currentLeftEye = currentLandmarks[33]
+        val currentLeftEyeX = currentLeftEye.x()
+        val currentLeftEyeY = currentLeftEye.y()
+
+        val currentRightEye = currentLandmarks[263]
+        val currentRightEyeX = currentRightEye.x()
+        val currentRightEyeY = currentRightEye.y()
+
+        val currentLeftEar = currentLandmarks[234]
+        val currentLeftEarX = currentLeftEar.x()
+        val currentLeftEarY = currentLeftEar.y()
+
+        val currentRightEar = currentLandmarks[254]
+        val currentRightEarX = currentRightEar.x()
+        val currentRightEarY = currentRightEar.y()
+
+        val currentMouthCenter = currentLandmarks[13]
+        val currentMouthCenterX = currentMouthCenter.x()
+        val currentMouthCenterY = currentMouthCenter.y()
+
+        val currentChin = currentLandmarks[152]
+        val currentChinX = currentChin.x()
+        val currentCHinY = currentChin.y()
+
+        val currentForehead = currentLandmarks[10]
+        val currentForeheadX = currentForehead.x()
+        val currentForeheadY = currentForehead.y()
+
+
+        // 정규화된 거리 계산 (0-1 사이의 값)
+        val currentLeftEyeXProximity = calculateNormalizedProximity(currentLeftEyeX, centerX, imageWidth)
+        val currentLeftEyeYProximity = calculateNormalizedProximity(currentLeftEyeY, centerY, imageHeight)
+
+        val currentRightEyeXProximity =
+            calculateNormalizedProximity(currentRightEyeX, centerX, imageWidth)
+        val currentRightEyeYProximity =
+            calculateNormalizedProximity(currentRightEyeY, centerY, imageHeight)
+
+        val currentLeftEarXProximity = calculateNormalizedProximity(currentLeftEarX, centerX, imageWidth)
+        val currentLeftEarYProximity = calculateNormalizedProximity(currentLeftEarY, centerY, imageHeight)
+
+        val currentRightEarXProximity = calculateNormalizedProximity(currentRightEarX, centerX, imageWidth)
+        val currentRightEarYProximity = calculateNormalizedProximity(currentRightEarY, centerY, imageHeight)
+
+        val currentMouthCenterXProximity = calculateNormalizedProximity(currentMouthCenterX, centerX, imageWidth)
+        val currentMouthCenterYProximity = calculateNormalizedProximity(currentMouthCenterY, centerY, imageHeight)
+
+        val currentChinXProximity = calculateNormalizedProximity(currentChinX, centerX, imageWidth)
+        val currentChinYProximity = calculateNormalizedProximity(currentCHinY, centerY, imageHeight)
+
+        val currentForeheadXProximity = calculateNormalizedProximity(currentForeheadX, centerX, imageWidth)
+        val currentForeheadYProximity = calculateNormalizedProximity(currentForeheadY, centerY, imageHeight)
+
+
+
+        // 정규화된 거리값 차이 계산 - diff with the predetermined data
+        val leftEyeXDiff = abs(currentLeftEyeXProximity - leftEyeDistanceX)
+        val leftEyeYDiff = abs(currentLeftEyeYProximity - leftEyeDistanceY)
+        val rightEyeXDiff = abs(currentRightEyeXProximity - rightEyeDistanceX)
+        val rightEyeYDiff = abs(currentRightEyeYProximity - rightEyeDistanceY)
+        val leftEarXDiff = abs(currentLeftEarXProximity - leftEarDistanceX)
+        val leftEarYDiff = abs(currentLeftEarYProximity - leftEarDistanceY)
+        val rightEarXDiff = abs(currentRightEarXProximity - rightEarDistanceX)
+        val rightEarYDiff = abs(currentRightEarYProximity - rightEarDistanceY)
+        val mouthCenterXDiff = abs(currentMouthCenterXProximity - mouthCenterDistanceX)
+        val mouthCenterYDiff = abs(currentMouthCenterYProximity - mouthCenterDistanceY)
+        val chinXDiff = abs(currentChinXProximity - chinDistanceX)
+        val chinYDiff = abs(currentChinYProximity - chinDistanceY)
+        val foreheadXDiff = abs(currentForeheadXProximity - foreheadDistanceX)
+        val foreheadYDiff = abs(currentForeheadYProximity - foreheadDistanceY)
+
+
+        // X, Y 각각의 점수 계산
+        val leftEyeXScore = calculateXScore(leftEyeXDiff)
+        val leftEyeYScore = calculateYScore(leftEyeYDiff)
+        val rightEyeXScore = calculateXScore(rightEyeXDiff)
+        val rightEyeYScore = calculateYScore(rightEyeYDiff)
+        val leftEarXScore = calculateXScore(leftEarXDiff)
+        val leftEarYScore = calculateYScore(leftEarYDiff)
+        val rightEarXScore = calculateXScore(rightEarXDiff)
+        val rightEarYScore = calculateYScore(rightEarYDiff)
+        val mouthCenterXScore = calculateXScore(mouthCenterXDiff)
+        val mouthCenterYScore = calculateYScore(mouthCenterYDiff)
+        val chinXScore = calculateXScore(chinXDiff)
+        val chinYScore = calculateYScore(chinYDiff)
+        val foreheadXScore = calculateXScore(foreheadXDiff)
+        val foreheadYScore = calculateYScore(foreheadYDiff)
+
+
+        // 각 부위별 종합 점수 계산
+        val leftEyeScore = calculatePartScore(leftEyeXScore, leftEyeYScore)
+        val rightEyeScore = calculatePartScore(rightEyeXScore, rightEyeYScore)
+        val leftEarScore = calculatePartScore(leftEarXScore, leftEarYScore)
+        val rightEarScore = calculatePartScore(rightEarXScore, rightEarYScore)
+        val mouthCenterScore = calculatePartScore(mouthCenterXScore, mouthCenterYScore)
+        val chinScore = calculatePartScore(chinXScore, chinYScore)
+        val foreheadScore = calculatePartScore(foreheadXScore, foreheadYScore)
+
+
+        // 최종 점수 계산
+        val finalScore = (leftEyeScore + rightEyeScore + leftEarScore + rightEarScore + mouthCenterScore + chinScore + foreheadScore) / 7
+
+        return finalScore
+    }
+
+
+
     private fun comparePosition(
         current: NormalizedLandmark,
         referenceX: Float,
@@ -126,12 +322,14 @@ class FacialComparator(
 
     private fun compareDistance(
         current: NormalizedLandmark,
-        referenceDistance: Float
+        referenceDistance: PoseLandmark?
     ): Float {
+        if (referenceDistance == null) return 0f  // Return 0 if referenceDistance is null
+
         // Compare distance between current landmark and reference distance
         val distance = sqrt(
-            (current.x() - referenceDistance) * (current.x() - referenceDistance) +
-                    (current.y() - referenceDistance) * (current.y() - referenceDistance)
+            (current.x() - referenceDistance.x) * (current.x() - referenceDistance.x) +
+                    (current.y() - referenceDistance.y) * (current.y() - referenceDistance.y)
         )
         return distance
     }
@@ -182,20 +380,4 @@ class FacialComparator(
     }
 }
 
-// Model for parsing JSON data
-data class FacialData(
-    val average_center: Point?,
-    val average_distances: Distances?
-)
 
-data class Point(val x: Float, val y: Float)
-
-data class Distances(
-    val left_eye: Float,
-    val right_eye: Float,
-    val left_ear: Float,
-    val right_ear: Float,
-    val mouth_center: Float,
-    val chin: Float,
-    val forehead: Float
-)
