@@ -6,17 +6,35 @@ import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
+import kotlin.math.pow
 
 // app/kotlin+java/com.example.cameraapp/analyzer/PoseComparator.kt
-class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoints) {
+class PoseComparator( private val referencePose: ReferencePoints,
+                      private val referenceCom: ReferencePoints) {
     companion object {
         private const val TAG = "PoseComparator"
         private const val POSITION_THRESHOLD = 0.1f
         private const val CRITICAL_THRESHOLD = 0.15f
-        private const val LOG_INTERVAL = 5000L  // 5초
+
     }
 
-//    // Access values from average_com and average_pose
+    private var currentCenterX = 0f
+    private var currentCenterY = 0f
+    private var isLeftHeavy = false
+    private var isRightHeavy = false
+    private var isTopHeavy = false
+    private var isBottomHeavy = false
+
+    // 복구된 정규화 값 계산
+    private fun restoreNormalizedValues(key: String): Pair<Float, Float> {
+        val normalizedX = referencePose.average_pose[key]?.x?.plus(referenceCom.average_com?.x ?: 0f) ?: 0f
+        val normalizedY = referencePose.average_pose[key]?.y?.plus(referenceCom.average_com?.y ?: 0f) ?: 0f
+        return Pair(normalizedX, normalizedY)
+    }
+
+
+
+    // Access values from average_com and average_pose
     val comX = referenceCom.average_com?.x ?: 0f // Safe access with a default value of 0f if null
     val comY = referenceCom.average_com?.y ?: 0f // Same for y value
 
@@ -54,17 +72,19 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         val positionScore: Float,          // 자세 점수
         val centerScore: Float,            // 구도 점수
         val suggestions: List<String>,     // 개선을 위한 제안사항
-        val detailedScores: Map<String, Float>  // 각 부위별 유사도 점수
+        val detailedScores: Map<String, Float>,  // 각 부위별 유사도 점수
+        val isLeftHeavy: Boolean = false,
+        val isRightHeavy: Boolean = false,
+        val isTopHeavy: Boolean = false,
+        val isBottomHeavy: Boolean = false,
+        val currentComX: Float = 0f,
+        val currentComY: Float = 0f,
+        val targetComX: Float = 0f,
+        val targetComY: Float = 0f,
+        val zoomSuggestion: String = "Perfect Zoom" // 추가: Zoom 상태 가이드
     )
 
-    private fun shouldLogNow(): Boolean {
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastLogTime >= LOG_INTERVAL) {
-            lastLogTime = currentTime
-            return true
-        }
-        return false
-    }
+
 
 
     fun comparePose(
@@ -72,8 +92,11 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         referencePose: ReferencePoints,
         imageWidth: Int,
         imageHeight: Int,
-        shouldLog: Boolean
+        //shouldLog: Boolean
     ): ComparisonResult {
+
+        val zoomSuggestion = determineZoomState(currentLandmarks, imageWidth, imageHeight)
+
         val differences = mutableMapOf<String, Float>()
         val suggestions = mutableListOf<String>()
 
@@ -109,7 +132,7 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
             currentLandmarks,
             imageWidth,
             imageHeight,
-            shouldLog  // shouldLog 전달
+            //shouldLog  // shouldLog 전달
         )
 
         // 3. 제안사항 생성
@@ -125,8 +148,73 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
             positionScore = positionScore,  // 추가
             centerScore = comScore,
             suggestions = suggestions,
-            detailedScores = differences
+            detailedScores = differences,
+            isLeftHeavy = isLeftHeavy,
+            isRightHeavy = isRightHeavy,
+            isTopHeavy = isTopHeavy,
+            isBottomHeavy = isBottomHeavy,
+            currentComX=currentCenterX/imageWidth,
+            currentComY=currentCenterY/imageHeight,
+            targetComX=comX,
+            targetComY=comY,
+            zoomSuggestion = zoomSuggestion
+
+
         )
+    }
+
+
+    private fun determineZoomState(
+        currentLandmarks: List<NormalizedLandmark>,
+        imageWidth: Int,
+        imageHeight: Int
+    ): String {
+        val (referenceNoseX, referenceNoseY) = restoreNormalizedValues("NOSE")
+        val referenceDistance=calculateDistance(
+            referenceNoseX,
+            referenceNoseY,
+            referenceCom.average_com?.x ?: 0f,
+            referenceCom.average_com?.y ?: 0f
+        )
+
+        // Normalize current nose
+        val currentNose = currentLandmarks[0]
+        val normalizedCurrentNoseX = currentNose.x()
+        val normalizedCurrentNoseY = currentNose.y()
+
+        // Normalize current COM
+        val normalizedCurrentComX = currentCenterX / imageWidth
+        val normalizedCurrentComY = currentCenterY / imageHeight
+
+        // Log the normalized values
+        Log.d(TAG, "Current COM - X: $normalizedCurrentComX, Y: $normalizedCurrentComY")
+        Log.d(TAG, "Current Nose - X: $normalizedCurrentNoseX, Y: $normalizedCurrentNoseY")
+        Log.d(TAG, "Reference COM - X: ${referenceCom.average_com?.x}, Y: ${referenceCom.average_com?.y}")
+        Log.d(TAG, "Reference Nose - X: $referenceNoseX, Y: $referenceNoseY")
+        Log.d(TAG, "Reference Distance: $referenceDistance")
+
+        val currentDistance = calculateDistance(
+            normalizedCurrentNoseX,
+            normalizedCurrentNoseY,
+            normalizedCurrentComX,
+            normalizedCurrentComY
+        )
+
+
+
+        Log.d(TAG, "Current Distance: $currentDistance")
+
+        return when {
+            currentDistance > referenceDistance -> "Zoom Out"
+            currentDistance < referenceDistance -> "Zoom In"
+            else -> "Perfect Zoom"
+        }
+    }
+
+
+
+    private fun calculateDistance(x1: Float, y1: Float, x2: Float, y2: Float): Float {
+        return sqrt((x1 - x2).pow(2) + (y1 - y2).pow(2))
     }
 
     private fun comparePosition(
@@ -196,7 +284,7 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         currentLandmarks: List<NormalizedLandmark>,
         imageWidth: Int,
         imageHeight: Int,
-        shouldLog: Boolean
+
     ): Float {
         // 현재 랜드마크의 위치를 픽셀 좌표로 변환
         val nose = currentLandmarks[0]
@@ -205,7 +293,7 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         val leftHip = currentLandmarks[23]
         val rightHip = currentLandmarks[24]
 
-        // 현재 좌표 계산
+//        // 현재 좌표 계산
         val currentNoseX = (1 - nose.y()) * imageWidth
         val currentNoseY = nose.x() * imageHeight
 
@@ -250,44 +338,34 @@ class PoseComparator(referencePose: ReferencePoints, referenceCom: ReferencePoin
         // 최종 점수 계산
         val finalScore = (noseScore + shoulderScore + hipScore) / 3
 
-        // 누르면 로그 출력
-        if (shouldLog) {
-            Log.d("ThirdsGuide", """
-                COM:
-                - X: $comX
-                - Y: $comY
-                
-                코 (X):
-                - 현재: $currentNoseXProximity
-                - 참조: ${noseDataX}
-                - 차이: $noseXDiff
-                
-                코 (Y):
-                - 현재: $currentNoseYProximity
-                - 참조: ${noseDataY}
-                - 차이: $noseYDiff
-                
-                어깨 (X):
-                - 현재: $currentShoulderXProximity
-                - 참조: ${shoulderDataX}
-                - 차이: $shoulderXDiff
-                
-                어깨 (Y):
-                - 현재: $currentShoulderYProximity
-                - 참조: ${shoulderDataY}
-                - 차이: $shoulderYDiff
-                
-                엉덩이 (X):
-                - 현재: $currentHipXProximity
-                - 참조: ${hipDataX}
-                - 차이: $hipXDiff
-                
-                엉덩이 (Y):
-                - 현재: $currentHipYProximity
-                - 참조: ${hipDataY}
-                - 차이: $hipYDiff
-            """.trimIndent())
-        }
+        // 방향 판단을 위한 중심점 계산
+        val centerX = imageWidth / 2f
+        val centerY = imageHeight / 2f
+
+        // 현재 포즈의 중심 계산
+        val currentCenterX = (currentNoseX + currentShoulderX + currentHipX) / 3
+        val currentCenterY = (currentNoseY + currentShoulderY + currentHipY) / 3
+
+        // 현재 중심점 저장
+        this.currentCenterX = currentCenterX
+        this.currentCenterY = currentCenterY
+
+        // 방향 판단 (20% 차이를 기준으로)
+        val threshold = imageWidth * 0.05f
+
+
+        // COM 위치 로깅
+//        Log.d("PoseComparator", "Current COM - X: ${currentCenterX/imageWidth}, Y: ${currentCenterY/imageHeight}")
+//        Log.d("PoseComparator", "Target COM - X: $comX, Y: $comY")
+//        Log.d("PoseComparator", "Difference - X: ${currentCenterX/imageWidth - comX}, Y: ${currentCenterY/imageHeight - comY}")
+
+        // 주어진 COM과 현재 COM의 차이로 방향 판단
+        isLeftHeavy = currentCenterX < (comX * imageWidth) - threshold
+        isRightHeavy = currentCenterX > (comX * imageWidth) + threshold
+        isTopHeavy = currentCenterY < (comY * imageHeight) - threshold
+        isBottomHeavy = currentCenterY > (comY * imageHeight) + threshold
+
+
 
         return finalScore
     }
