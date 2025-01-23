@@ -125,8 +125,6 @@ class MainActivity : ComponentActivity() {
         }
 
 
-
-
         poseSuggestionView = PoseSuggestionView(this)
 
         bodyAnalyzer = BodyAnalyzer(this) { result: PoseLandmarkerResult, mpImage: MPImage ->
