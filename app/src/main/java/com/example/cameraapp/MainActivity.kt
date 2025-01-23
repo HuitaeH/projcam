@@ -69,6 +69,8 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import androidx.core.os.HandlerCompat.postDelayed
 import android.content.Intent
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 
 class MainActivity : ComponentActivity() {
     private var imageCapture: ImageCapture? = null
@@ -82,6 +84,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var referencePose: ReferencePoints
     private lateinit var poseSuggestionView: PoseSuggestionView
     private var currentCameraSelector = CameraSelector.DEFAULT_BACK_CAMERA // 기본은 후면 카메라
+    private lateinit var scaleGestureDetector: ScaleGestureDetector
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -106,6 +109,13 @@ class MainActivity : ComponentActivity() {
         setContentView(R.layout.activity_main)
         // Initialize views
         viewFinder = findViewById(R.id.viewFinder)
+
+        setupCameraZoom()
+
+
+
+
+
         val captureButton: ImageButton = findViewById(R.id.camera_capture_button)
         val switchButton: ImageButton = findViewById(R.id.camera_switch_button)
 
@@ -159,6 +169,26 @@ class MainActivity : ComponentActivity() {
         bindCameraUseCases() // 카메라 재설정
     }
 
+    private fun setupCameraZoom() {
+        scaleGestureDetector = ScaleGestureDetector(this,
+            object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                override fun onScale(detector: ScaleGestureDetector): Boolean {
+                    val camera = camera
+                    val currentZoomRatio = camera.cameraInfo.zoomState.value?.zoomRatio ?: 1f
+                    val delta = detector.scaleFactor
+                    camera.cameraControl.setZoomRatio(currentZoomRatio * delta)
+                    return true
+                }
+            })
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        scaleGestureDetector.onTouchEvent(event)
+        return super.onTouchEvent(event)
+    }
+
+
+
     private fun bindCameraUseCases() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
@@ -195,6 +225,8 @@ class MainActivity : ComponentActivity() {
                     imageAnalyzerUseCase
                 )
                 imageCapture = imageCaptureUseCase
+
+
             } catch (e: Exception) {
                 Log.e(TAG, "Camera use case binding failed", e)
             }
