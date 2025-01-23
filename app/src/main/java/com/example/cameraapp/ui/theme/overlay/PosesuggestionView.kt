@@ -6,7 +6,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.RectF
 import android.view.MotionEvent
 import android.view.View
 import com.example.cameraapp.analyzer.PoseComparator
@@ -40,21 +39,21 @@ class PoseSuggestionView(context: Context) : View(context) {
         textAlign = Paint.Align.CENTER
     }
 
+    private val arrowPaint = Paint().apply {
+        style = Paint.Style.FILL_AND_STROKE
+        strokeWidth = 8f
+        strokeJoin = Paint.Join.ROUND
+        strokeCap = Paint.Cap.ROUND
+    }
 
-
-
+    private val suggestionPaint = Paint().apply {
+        color = Color.WHITE
+        textSize = 40f
+        isFakeBoldText = true
+        setShadowLayer(3f, 0f, 0f, Color.BLACK)
+    }
 
     private val backgroundPaint = Paint().apply {
-        color = Color.parseColor("#66000000")
-        style = Paint.Style.FILL
-    }
-
-    private val gaugePaint = Paint().apply {
-        color = Color.WHITE
-        style = Paint.Style.FILL
-    }
-
-    private val gaugeBackgroundPaint = Paint().apply {
         color = Color.parseColor("#66000000")
         style = Paint.Style.FILL
     }
@@ -64,12 +63,21 @@ class PoseSuggestionView(context: Context) : View(context) {
         invalidate()
     }
 
+    private val logButtonPaint = Paint().apply {
+        color = Color.WHITE
+        style = Paint.Style.FILL
+        alpha = 180
+    }
+
+    private val logButtonTextPaint = Paint().apply {
+        color = Color.BLACK
+        textSize = 40f
+        textAlign = Paint.Align.CENTER
+        isFakeBoldText = true
+    }
 
 
-
-
-
-
+    //private var shouldLog = false
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -78,43 +86,6 @@ class PoseSuggestionView(context: Context) : View(context) {
         drawThirdsGrid(canvas)
 
         comparisonResult?.let { result ->
-            // 게이지 바 그리기
-            val gaugeHeight = 20f
-            val gaugeY = height * 0.02f
-
-
-            val cornerRadius = 10f  // 둥근 모서리
-            val padding = width * 0.05f  // 좌우 패딩
-
-
-            // 게이지 배경 (둥근 모서리)
-            val backgroundRect = RectF(padding, gaugeY, width - padding, gaugeY + gaugeHeight)
-            //val backgroundRect = RectF(gaugeX, padding, gaugeX + gaugeWidth, height - padding)
-            canvas.drawRoundRect(backgroundRect, cornerRadius, cornerRadius, gaugeBackgroundPaint)
-
-            // 점수에 따른 게이지 너비와 색상
-            val fillWidth = minOf(
-               width - padding,  // 최대 너비 제한
-                (((width - (padding * 2)) * (result.centerScore / 100f)) + padding)
-            )
-
-
-            gaugePaint.color = when {
-                result.centerScore >= 90 -> Color.GREEN
-                result.centerScore >= 70 -> Color.YELLOW
-                else -> Color.RED
-            }
-
-
-
-
-            // 게이지 채우기 (둥근 모서리)
-            val fillRect = RectF(padding, gaugeY, fillWidth, gaugeY + gaugeHeight)
-            //val fillRect = RectF(gaugeX, height - fillHeight, gaugeX + gaugeWidth, height - padding)
-            canvas.drawRoundRect(fillRect, cornerRadius, cornerRadius, gaugePaint)
-
-//
-
             // 반투명 배경
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), backgroundPaint)
 
@@ -122,22 +93,92 @@ class PoseSuggestionView(context: Context) : View(context) {
             val scoreX = width / 2f
             val scoreBaseY = height * 0.15f
 
+            // 전체 점수
+            scorePaint.color = when {
+                result.overallScore >= 90 -> Color.GREEN
+                result.overallScore >= 70 -> Color.YELLOW
+                else -> Color.RED
+            }
+            canvas.drawText("전체: ${result.overallScore.toInt()}%", scoreX, scoreBaseY, scorePaint)
+
+            // 자세 점수
+            val positionScore = result.positionScore
+            scorePaint.color = when {
+                positionScore >= 90 -> Color.GREEN
+                positionScore >= 70 -> Color.YELLOW
+                else -> Color.RED
+            }
+            canvas.drawText("자세: ${positionScore.toInt()}%", scoreX, scoreBaseY + 100f, scorePaint)
+
             // 구도 점수
             scorePaint.color = when {
-                result.centerScore >= 90 -> Color.GREEN
-                result.centerScore >= 70 -> Color.YELLOW
+                result.thirdsScore >= 90 -> Color.GREEN
+                result.thirdsScore >= 70 -> Color.YELLOW
                 else -> Color.RED
             }
             canvas.drawText(
-                "구도: ${result.centerScore.toInt()}%",
+                "구도: ${result.thirdsScore.toInt()}%",
                 scoreX,
                 scoreBaseY + 200f,
                 scorePaint
             )
+
+            // 화살표 표시
+            //drawDirectionalArrows(canvas, result)
+
+            // 제안사항 표시
+            //drawSuggestions(canvas, result.suggestions)
+
+            // 로그 버튼 그리기
+//            val buttonWidth = 150f
+//            val buttonHeight = 80f
+//            val buttonLeft = width - buttonWidth - 20f
+//            val buttonTop = 20f
+//            canvas.drawRoundRect(
+//                buttonLeft,
+//                buttonTop,
+//                buttonLeft + buttonWidth,
+//                buttonTop + buttonHeight,
+//                20f,
+//                20f,
+//                logButtonPaint
+
+//            canvas.drawText(
+//                "로그",
+//                buttonLeft + buttonWidth / 2,
+//                buttonTop + buttonHeight / 2 + 15f,
+//                logButtonTextPaint
+           // )
         }
     }
 
-
+//    override fun onTouchEvent(event: MotionEvent): Boolean {
+//        when (event.action) {
+//            MotionEvent.ACTION_DOWN -> {
+//                // 버튼 영역 체크
+//                val buttonWidth = 150f
+//                val buttonHeight = 80f
+//                val buttonLeft = width - buttonWidth - 20f
+//                val buttonTop = 20f
+//                val x = event.x
+//                val y = event.y
+//
+//                if (x >= buttonLeft && x <= buttonLeft + buttonWidth &&
+//                    y >= buttonTop && y <= buttonTop + buttonHeight) {
+//                    shouldLog = true
+//                    return true
+//                }
+//            }
+//            MotionEvent.ACTION_UP -> {
+//                shouldLog = false
+//            }
+//        }
+//        return super.onTouchEvent(event)
+//    }
+//
+//        fun getShouldLog(): Boolean {
+//            return shouldLog
+//        }
 
 
     private fun drawThirdsGrid(canvas: Canvas) {
@@ -158,10 +199,79 @@ class PoseSuggestionView(context: Context) : View(context) {
         canvas.drawLine(0f, thirdY2, width.toFloat(), thirdY2, gridPaint)
     }
 
+//    private fun drawDirectionalArrows(canvas: Canvas, result: PoseComparator.ComparisonResult) {
+//        // 점수가 낮을수록 화살표가 더 선명하게 표시
+//        arrowPaint.alpha = ((100 - result.overallScore) * 2.55f).toInt().coerceIn(0, 255)
+//
+//        result.detailedScores.forEach { (key, score) ->
+//            val threshold = 0.5f  // 임계값
+//            when (key) {
+//                "NOSE" -> {
+//                    if (score < threshold) {
+//                        drawArrow(canvas, "CENTER", arrowPaint)
+//                    }
+//                }
+//                "SHOULDERS" -> {
+//                    if (score < threshold) {
+//                        drawArrow(canvas, "LEFT", arrowPaint)
+//                        drawArrow(canvas, "RIGHT", arrowPaint)
+//                    }
+//                }
+//                "HIPS" -> if (score < threshold) drawArrow(canvas, "DOWN", arrowPaint)
+//            }
+//        }
+//    }
 
+//    private fun drawArrow(canvas: Canvas, direction: String, paint: Paint) {
+//        val path = Path()
+//        val arrowSize = width * 0.1f
+//        val centerX = width / 2f
+//        val centerY = height / 2f
+//
+//        // 화살표 움직임을 위한 오프셋 계산
+//        val offset = (arrowSize * 0.2f) * Math.sin(arrowPhase * 2 * Math.PI).toFloat()
+//
+//        when (direction) {
+//            "CENTER" -> {
+//                paint.color = Color.YELLOW
+//                val radius = arrowSize * 0.5f
+//                val pulseRadius = radius + (arrowSize * 0.1f) * Math.sin(arrowPhase * 2 * Math.PI).toFloat()
+//                canvas.drawCircle(centerX, centerY, pulseRadius, paint)
+//            }
+//            "LEFT" -> {
+//                paint.color = Color.CYAN
+//                path.moveTo(centerX - arrowSize * 2 + offset, centerY)
+//                path.lineTo(centerX - arrowSize + offset, centerY - arrowSize)
+//                path.lineTo(centerX - arrowSize + offset, centerY + arrowSize)
+//                path.close()
+//            }
+//            "RIGHT" -> {
+//                paint.color = Color.CYAN
+//                path.moveTo(centerX + arrowSize * 2 - offset, centerY)
+//                path.lineTo(centerX + arrowSize - offset, centerY - arrowSize)
+//                path.lineTo(centerX + arrowSize - offset, centerY + arrowSize)
+//                path.close()
+//            }
+//            "DOWN" -> {
+//                paint.color = Color.MAGENTA
+//                path.moveTo(centerX, centerY + arrowSize * 2 - offset)
+//                path.lineTo(centerX - arrowSize, centerY + arrowSize - offset)
+//                path.lineTo(centerX + arrowSize, centerY + arrowSize - offset)
+//                path.close()
+//            }
+//        }
+//
+//        if (direction != "CENTER") {
+//            canvas.drawPath(path, paint)
+//        }
+//    }
 
-
-
+    private fun drawSuggestions(canvas: Canvas, suggestions: List<String>) {
+        suggestions.forEachIndexed { index, suggestion ->
+            val y = height * 0.8f + (index * 60f)
+            canvas.drawText(suggestion, width * 0.1f, y, suggestionPaint)
+        }
+    }
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
